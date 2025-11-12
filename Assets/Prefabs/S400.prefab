@@ -1,0 +1,199 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4803456367561941594
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2982656326942005000}
+  - component: {fileID: 7936015984862496529}
+  - component: {fileID: 4635836820295276883}
+  - component: {fileID: 4871983777989849475}
+  m_Layer: 0
+  m_Name: S400
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2982656326942005000
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4803456367561941594}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -2.729662, y: -0.9, z: 14.7}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8776173302862423089}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7936015984862496529
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4803456367561941594}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4a699d0e406fac4bb1e6b37e5bf6978, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scanRadius: 50
+  detectionLayer:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  scanInterval: 1
+--- !u!114 &4635836820295276883
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4803456367561941594}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e73fca4e07ff1ae43ae39125c597bb35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  radarSystem: {fileID: 0}
+  distanceWeight: 1000
+  speedWeight: 0.5
+  rcsWeight: 50
+  engagementThreshold: 10
+  rcsTagValues:
+  - tag: Bomber
+    rcsValue: 0.7
+  - tag: Fighter
+    rcsValue: 0.17
+  - tag: Bird
+    rcsValue: 0.002
+  missilePrefab: {fileID: 2713918348358415267, guid: 8b728d46b9e6d67438da2fd59a0b12b1, type: 3}
+  launchHeight: 5
+--- !u!114 &4871983777989849475
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4803456367561941594}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6ef073bfda9cdc4495cf8891af84f98, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  prefabs:
+  - {fileID: 9056011430094021282, guid: ae9a77da0dc097246b64865abf6ee8ba, type: 3}
+  - {fileID: 888376215153971156, guid: bd6a3877f283695409008076bddce3d7, type: 3}
+  - {fileID: 6214183686630247525, guid: f72f1cde28800334ca6102af4245c093, type: 3}
+  radius: 100
+  altitude: 30
+  numberOfObjects: 20
+  spawnInterval: 1
+  spawnOnStart: 1
+  loopSpawning: 1
+  minSpeed: 20
+  maxSpeed: 30
+  randomizeSpeed: 1
+  randomizeStartPosition: 1
+  randomizeEndPosition: 1
+  startAngleMin: 0
+  startAngleMax: 360
+  endAngleMin: 0
+  endAngleMax: 360
+  randomizeAltitude: 0
+  minAltitude: 30
+  maxAltitude: 70
+  randomizeRadiusOffset: 0
+  minRadiusOffset: -0.5
+  maxRadiusOffset: 0.5
+  destroyOnArrival: 1
+  destroyDelay: 0
+--- !u!1001 &9097696086442427354
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 2982656326942005000}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.005
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.005
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0.005
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+      propertyPath: m_Name
+      value: S400 model coverless
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects:
+    - {fileID: -8700617353114198275, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+    - {fileID: 65702495048144492, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+--- !u!4 &8776173302862423089 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 95af34828ca6a984794032bed8575c74, type: 3}
+  m_PrefabInstance: {fileID: 9097696086442427354}
+  m_PrefabAsset: {fileID: 0}
