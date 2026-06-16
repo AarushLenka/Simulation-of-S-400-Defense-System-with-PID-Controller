@@ -5,7 +5,6 @@ public class Bird : AerialTarget
 
     protected override void InitializeTarget()
     {
-        threatLevel = ThreatLevel.None;
         flock = FindObjectsByType<Bird>(FindObjectsSortMode.None);
     }
 

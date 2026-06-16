@@ -37,4 +37,4 @@ public class StealthFighter : AerialTarget
         }
         transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
     }
-} 
+}
