@@ -1,3 +1,5 @@
+using UnityEngine;
+
 [CreateAssetMenu(menuName = "S400/TargetConfig")]
 public class TargetConfig : ScriptableObject
 {

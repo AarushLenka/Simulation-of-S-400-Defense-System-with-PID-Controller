@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using UnityEngine;
+
 public class RadarAntenna : MonoBehaviour
 {
     public float range         = 400000f; // 400 km
@@ -27,12 +30,17 @@ public class RadarAntenna : MonoBehaviour
                 if (tgt != null)
                 {
                     tgt.isDetected = true;
-                    contacts.Add(new RadarContact {
+                    tgt.isTracked  = true;  // sustained lock once inside the cone
+
+                    var contact = new RadarContact {
                         target   = tgt,
                         position = hit.transform.position,
                         velocity = tgt.rb.linearVelocity,
                         rcs      = tgt.config.rcs
-                    });
+                    };
+                    contact.threatLevel = ThreatClassifier.Classify(contact);
+                    tgt.threatLevel      = contact.threatLevel;  // mirror onto the target
+                    contacts.Add(contact);
                 }
             }
         }

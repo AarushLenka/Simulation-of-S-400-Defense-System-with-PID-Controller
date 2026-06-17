@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public class StrategicBomber : AerialTarget
 {
     protected override void InitializeTarget()

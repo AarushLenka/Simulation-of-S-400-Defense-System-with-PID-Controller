@@ -1,6 +1,8 @@
+using UnityEngine;
+
 public enum ThreatLevel { None, Low, Medium, High, Critical }
 
-public class ThreatClassifier : MonoBehaviour
+public static class ThreatClassifier
 {
     public static ThreatLevel Classify(RadarContact c)
     {

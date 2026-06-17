@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public class StealthFighter : AerialTarget
 {
     private enum State { Cruise, Evade, Dash }

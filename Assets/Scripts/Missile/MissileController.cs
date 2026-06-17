@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public class MissileController : MonoBehaviour
 {
     [Header("Outer Loop — Guidance (heading error → desired turn rate)")]

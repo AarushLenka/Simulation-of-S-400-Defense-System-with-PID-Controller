@@ -1,10 +1,5 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "MissileConfig", menuName = "Scriptable Objects/MissileConfig")]
-public class MissileConfig : ScriptableObject
-{
-    
-}
 [CreateAssetMenu(menuName = "S400/MissileConfig")]
 public class MissileConfig : ScriptableObject
 {

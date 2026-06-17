@@ -1,3 +1,7 @@
+using System.Collections;
+using System.Linq;
+using UnityEngine;
+
 public class FireControlSystem : MonoBehaviour
 {
     public RadarAntenna radar;
@@ -45,7 +49,7 @@ public class FireControlSystem : MonoBehaviour
     }
 
     IEnumerator LaunchAfterDelay(Transform launcher,
-                                AerialTarget target, float delay)
+                                 AerialTarget target, float delay)
     {
         yield return new WaitForSeconds(delay);
         GameObject m = Instantiate(missilePrefab, launcher.position,
@@ -56,4 +60,8 @@ public class FireControlSystem : MonoBehaviour
     Transform NearestLauncher(Vector3 pos) =>
         launcherPositions.OrderBy(l =>
             Vector3.Distance(l.position, pos)).First();
+
+    // Tracked for HUDController.cs (Section 7.3) — increment on launch,
+    // decrement from MissileController.Detonate() via a callback.
+    public int ActiveMissileCount { get; private set; }
 }

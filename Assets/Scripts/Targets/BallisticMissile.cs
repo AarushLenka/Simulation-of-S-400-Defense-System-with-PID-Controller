@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public class BallisticMissile : AerialTarget
 {
     public float boostThrust  = 15000f; // N
@@ -29,7 +31,7 @@ public class BallisticMissile : AerialTarget
             {
                 reentryStarted = true;
                 // Add atmospheric drag approximation at reentry
-                rb.drag = 0.05f;
+                rb.linearDamping = 0.05f;
             }
         }
         currentAltitude = transform.position.y;

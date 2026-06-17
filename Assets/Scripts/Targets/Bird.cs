@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public class Bird : AerialTarget
 {
     public float separationDist = 5f;

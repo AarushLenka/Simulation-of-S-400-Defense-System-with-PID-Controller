@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public class UAVDrone : AerialTarget
 {
     private enum State { Loiter, Dive }

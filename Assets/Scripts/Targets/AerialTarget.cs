@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public abstract class AerialTarget : MonoBehaviour
 {
     [Header("Config")]
@@ -17,7 +19,7 @@ public abstract class AerialTarget : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.useGravity = false;     // Custom gravity for ballistic only
-        rb.drag = 0f;
+        rb.linearDamping = 0f;
         InitializeTarget();
     }
 

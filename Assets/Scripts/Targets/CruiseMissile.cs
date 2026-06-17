@@ -1,8 +1,17 @@
+using UnityEngine;
+
 public class CruiseMissile : AerialTarget
 {
     public Transform[] waypoints;
     public float terrainFollowHeight = 50f;
     private int wpIndex = 0;
+
+    protected override void InitializeTarget()
+    {
+        currentSpeed    = Random.Range(config.minSpeed, config.maxSpeed);
+        currentAltitude = Random.Range(config.minAltitude, config.maxAltitude);
+        rb.linearVelocity = transform.forward * currentSpeed;
+    }
 
     public override void UpdateMotion()
     {
