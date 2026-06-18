@@ -14,6 +14,7 @@ public abstract class AerialTarget : MonoBehaviour
     public bool isTracked;
 
     protected Rigidbody rb;
+    public Rigidbody Rb => rb;
 
     protected virtual void Awake()
     {

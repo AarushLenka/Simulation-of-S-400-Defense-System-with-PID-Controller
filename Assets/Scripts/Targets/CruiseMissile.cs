@@ -8,8 +8,7 @@ public class CruiseMissile : AerialTarget
 
     protected override void InitializeTarget()
     {
-        currentSpeed    = Random.Range(config.minSpeed, config.maxSpeed);
-        currentAltitude = Random.Range(config.minAltitude, config.maxAltitude);
+        currentSpeed = Random.Range(config.minSpeed, config.maxSpeed);
         rb.linearVelocity = transform.forward * currentSpeed;
     }
 

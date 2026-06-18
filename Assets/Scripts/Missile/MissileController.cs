@@ -80,7 +80,7 @@ public class MissileController : MonoBehaviour
         // ── OUTER LOOP: heading error → desired turn rate (deg/s) ──
         float tof   = Vector3.Distance(transform.position,
                         target.transform.position) / Mathf.Max(currentSpeed, 1f);
-        Vector3 aim = target.transform.position + target.rb.linearVelocity * tof;
+        Vector3 aim = target.transform.position + target.Rb.linearVelocity * tof;
 
         Vector3 toTarget = aim - transform.position;
         Vector3 localDir = transform.InverseTransformDirection(toTarget.normalized);

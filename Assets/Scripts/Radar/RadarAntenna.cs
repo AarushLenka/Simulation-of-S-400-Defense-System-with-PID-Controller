@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;   // for List<RadarContact>
 
 public class RadarAntenna : MonoBehaviour
 {
@@ -35,7 +35,7 @@ public class RadarAntenna : MonoBehaviour
                     var contact = new RadarContact {
                         target   = tgt,
                         position = hit.transform.position,
-                        velocity = tgt.rb.linearVelocity,
+                        velocity = tgt.Rb.linearVelocity,
                         rcs      = tgt.config.rcs
                     };
                     contact.threatLevel = ThreatClassifier.Classify(contact);

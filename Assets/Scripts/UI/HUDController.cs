@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class HUDController : MonoBehaviour
 {
@@ -20,7 +21,7 @@ public class HUDController : MonoBehaviour
         missCountText.text      = $"Misses: {misses}";
         pauseText.gameObject.SetActive(Time.timeScale == 0f);
 
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
             Time.timeScale = (Time.timeScale == 0f) ? 1f : 0f;
     }
 

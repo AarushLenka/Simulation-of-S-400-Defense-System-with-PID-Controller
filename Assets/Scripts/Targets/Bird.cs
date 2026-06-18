@@ -7,7 +7,7 @@ public class Bird : AerialTarget
 
     protected override void InitializeTarget()
     {
-        flock = FindObjectsByType<Bird>(FindObjectsSortMode.None);
+        flock = FindObjectsByType<Bird>(FindObjectsInactive.Exclude);
     }
 
     public override void UpdateMotion()
