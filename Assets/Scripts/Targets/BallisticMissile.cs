@@ -2,15 +2,18 @@ using UnityEngine;
 
 public class BallisticMissile : AerialTarget
 {
-    public float boostThrust  = 15000f; // N
-    public float boostDuration = 60f;   // seconds
+    public float boostDuration = 20f;   // seconds of powered flight
     private float elapsed;
     private bool reentryStarted;
 
     protected override void InitializeTarget()
     {
-        rb.useGravity = false;
-        rb.linearVelocity = (transform.forward + Vector3.up * 2f).normalized * 300f;
+        rb.useGravity    = false;
+        rb.linearDamping  = 0f;
+        rb.angularDamping = 0f;
+        currentSpeed = config.minSpeed;
+        // Launch at steep upward angle
+        rb.linearVelocity = (transform.forward + Vector3.up * 1.5f).normalized * currentSpeed;
     }
 
     public override void UpdateMotion()
@@ -19,21 +22,23 @@ public class BallisticMissile : AerialTarget
 
         if (elapsed < boostDuration)
         {
-            // Boost phase — thrust upward + forward
-            Vector3 thrust = (transform.forward + Vector3.up).normalized * boostThrust;
-            rb.AddForce(thrust * Time.fixedDeltaTime, ForceMode.VelocityChange);
+            // Boost — accelerate using config values, clamped to maxSpeed
+            float accel = (config.maxSpeed - config.minSpeed) / boostDuration;
+            Vector3 thrustDir = (transform.forward + Vector3.up * 0.5f).normalized;
+            rb.AddForce(thrustDir * accel, ForceMode.Acceleration);
+            if (rb.linearVelocity.magnitude > config.maxSpeed)
+                rb.linearVelocity = rb.linearVelocity.normalized * config.maxSpeed;
         }
         else
         {
-            // Coast + reentry — real gravity
             rb.useGravity = true;
             if (!reentryStarted && rb.linearVelocity.y < 0)
             {
                 reentryStarted = true;
-                // Add atmospheric drag approximation at reentry
-                rb.linearDamping = 0.05f;
+                rb.linearDamping = 0.1f;
             }
         }
+
         currentAltitude = transform.position.y;
         currentSpeed    = rb.linearVelocity.magnitude;
     }

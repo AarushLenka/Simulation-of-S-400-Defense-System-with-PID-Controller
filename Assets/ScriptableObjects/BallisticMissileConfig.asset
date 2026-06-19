@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: BallisticMissileConfig
   m_EditorClassIdentifier: Assembly-CSharp::TargetConfig
   targetTypeName: BallisiticMissile
-  minSpeed: 1000
-  maxSpeed: 3000
+  minSpeed: 50
+  maxSpeed: 87
   minAltitude: 0
-  maxAltitude: 50000
+  maxAltitude: 750
   rcs: 1
-  maxManeuverG: 0
+  maxManeuverG: 1
   defaultThreat: 4

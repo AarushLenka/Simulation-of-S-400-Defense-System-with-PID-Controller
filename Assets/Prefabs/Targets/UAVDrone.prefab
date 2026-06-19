@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 7874237146401485317}
   - component: {fileID: 5761812637854899692}
   - component: {fileID: 5758361187990257439}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: UAVDrone
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -29,8 +29,8 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 104.1, y: 104.1, z: 104.1}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 2327066964142228348}
   m_Father: {fileID: 0}

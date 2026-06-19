@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: BirdConfig
   m_EditorClassIdentifier: Assembly-CSharp::TargetConfig
   targetTypeName: Bird
-  minSpeed: 5
-  maxSpeed: 20
-  minAltitude: 5
-  maxAltitude: 300
-  rcs: 0.001
-  maxManeuverG: 2
+  minSpeed: 0.2
+  maxSpeed: 0.5
+  minAltitude: 0
+  maxAltitude: 25
+  rcs: 0.0005
+  maxManeuverG: 1
   defaultThreat: 0

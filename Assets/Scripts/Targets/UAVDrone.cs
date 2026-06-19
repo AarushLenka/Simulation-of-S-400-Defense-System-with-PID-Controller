@@ -6,8 +6,8 @@ public class UAVDrone : AerialTarget
     private State state = State.Loiter;
 
     public Vector3 loiterCenter;
-    public float   loiterRadius = 800f;
-    public float   diveTargetY  = 0f;     // altitude to dive toward
+    public float   loiterRadius = 200f;  // 1:40 scale (IRL ~8km loiter pattern)
+    public float   diveTargetY  = 100f;
     private float  loiterAngle;
 
     protected override void InitializeTarget()
@@ -37,7 +37,7 @@ public class UAVDrone : AerialTarget
             case State.Dive:
                 // Sharp descent, moderate speed increase
                 currentSpeed = Mathf.MoveTowards(currentSpeed,
-                    config.maxSpeed, 15f * Time.fixedDeltaTime);
+                    config.maxSpeed, 3f * Time.fixedDeltaTime);
                 Vector3 diveDir = new Vector3(transform.forward.x, -0.6f,
                     transform.forward.z).normalized;
                 rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,

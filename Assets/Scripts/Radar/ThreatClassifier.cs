@@ -9,28 +9,29 @@ public static class ThreatClassifier
         float spd = c.velocity.magnitude;
         float alt = c.position.y;
 
-        // Birds — fast exclusion
-        if (spd < 25f && alt < 400f && c.rcs < 0.01f)
+        // Birds — very low RCS + low altitude + slow (use RCS as primary signal)
+        // rcs < 0.001 covers birds regardless of current speed
+        if (c.rcs < 0.001f && alt < 500f)
             return ThreatLevel.None;
 
-        // Ballistic — very high speed + high arc
-        if (spd > 800f)
+        // Ballistic missile — very high speed or very high altitude arc
+        if (spd > 800f || alt > 50000f)
             return ThreatLevel.Critical;
 
-        // Cruise — low altitude, moderate speed
-        if (alt < 200f && spd > 150f && c.rcs < 0.5f)
+        // Stealth fighter — very low RCS (even at low speed on first detection)
+        if (c.rcs < 0.05f)
             return ThreatLevel.Critical;
 
-        // Stealth fighter — low RCS, high speed
-        if (c.rcs < 0.01f && spd > 300f)
+        // Cruise missile — low altitude, moderate speed, low RCS
+        if (alt < 500f && c.rcs < 1f)
             return ThreatLevel.Critical;
 
-        // Bomber — large RCS, high alt
-        if (c.rcs > 50f && alt > 5000f)
+        // Strategic bomber — large RCS, high altitude
+        if (c.rcs > 50f && alt > 3000f)
             return ThreatLevel.High;
 
-        // UAV
-        if (spd < 150f && alt < 6000f)
+        // UAV — small, slow, low altitude
+        if (spd < 200f && c.rcs < 5f)
             return ThreatLevel.Medium;
 
         return ThreatLevel.Low;

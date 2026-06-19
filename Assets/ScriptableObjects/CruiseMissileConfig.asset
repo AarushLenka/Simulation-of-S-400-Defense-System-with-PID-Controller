@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: CruiseMissileConfig
   m_EditorClassIdentifier: Assembly-CSharp::TargetConfig
   targetTypeName: CruiseMissile
-  minSpeed: 0
-  maxSpeed: 0
-  minAltitude: 0
-  maxAltitude: 0
-  rcs: 0
-  maxManeuverG: 0
+  minSpeed: 6
+  maxSpeed: 8
+  minAltitude: 5
+  maxAltitude: 15
+  rcs: 0.05
+  maxManeuverG: 3
   defaultThreat: 4

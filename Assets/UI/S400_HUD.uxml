@@ -1,0 +1,118 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:Style src="S400_HUD.uss" />
+
+    <ui:VisualElement name="hud-root" class="hud-root">
+
+        <!-- TOP BAR -->
+        <ui:VisualElement name="top-bar" class="top-bar">
+            <ui:VisualElement class="top-bar-center">
+                <ui:Label name="system-title" text="S-400 TRIUMF" class="system-title" />
+                <ui:Label text="SURFACE-TO-AIR MISSILE SYSTEM" class="system-subtitle" />
+            </ui:VisualElement>
+            <ui:VisualElement class="top-bar-center">
+                <ui:Label name="clock-label" text="00:00:00" class="clock-label" />
+                <ui:Label text="COMBAT MODE — ACTIVE" class="mode-label" />
+            </ui:VisualElement>
+            <ui:VisualElement class="status-indicator">
+                <ui:VisualElement name="status-dot" class="status-dot" />
+                <ui:Label name="status-text" text="SYSTEM ONLINE" class="status-text" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <!-- MIDDLE AREA -->
+        <ui:VisualElement class="middle-area">
+
+            <!-- LEFT PANEL — system stats -->
+            <ui:VisualElement class="left-panel">
+                <ui:Label text="ENGAGEMENT STATUS" class="panel-header" />
+
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="ACTIVE INTERCEPTORS" class="stat-label" />
+                    <ui:Label name="active-missiles-val" text="0" class="stat-value" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="KILLS CONFIRMED" class="stat-label" />
+                    <ui:Label name="kills-val" text="0" class="stat-value stat-value--green" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="MISSES" class="stat-label" />
+                    <ui:Label name="misses-val" text="0" class="stat-value stat-value--red" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="RADAR CONTACTS" class="stat-label" />
+                    <ui:Label name="contacts-val" text="0" class="stat-value stat-value--yellow" />
+                </ui:VisualElement>
+
+                <ui:Label text="RADAR SYSTEMS" class="panel-header" style="margin-top: 16px;" />
+
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="ANTENNA BEARING" class="stat-label" />
+                    <ui:Label name="antenna-angle-val" text="000°" class="stat-value" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="SCAN RANGE" class="stat-label" />
+                    <ui:Label text="400 KM" class="stat-value" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="ROTATION SPEED" class="stat-label" />
+                    <ui:Label text="36°/S" class="stat-value" />
+                </ui:VisualElement>
+
+                <ui:Label text="KEYBINDINGS" class="panel-header" style="margin-top: 16px;" />
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="[F] STEALTH" class="stat-label" />
+                    <ui:Label text="[R] BOMBER" class="stat-label" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="[B] BALLISTIC" class="stat-label" />
+                    <ui:Label text="[C] CRUISE" class="stat-label" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="[D] UAV x5" class="stat-label" />
+                    <ui:Label text="[K] BIRDS x8" class="stat-label" />
+                </ui:VisualElement>
+                <ui:VisualElement class="stat-row">
+                    <ui:Label text="[ESC] PAUSE" class="stat-label" />
+                    <ui:Label text="[T] DEBUG" class="stat-label" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- CENTER — radar scope -->
+            <ui:VisualElement class="radar-area">
+                <ui:VisualElement name="radar-frame" class="radar-frame">
+                    <ui:VisualElement class="radar-inner-ring" />
+                    <ui:VisualElement class="radar-inner-ring2" />
+                    <ui:VisualElement name="radar-scope" style="width:320px; height:320px; border-radius:160px; overflow:hidden; position:absolute; -unity-background-scale-mode: stretch-to-fill;" />
+                    <ui:Label text="400KM" class="radar-label" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+
+            <!-- RIGHT PANEL — threat list -->
+            <ui:VisualElement class="right-panel">
+                <ui:Label text="THREAT TRACKS" class="panel-header" />
+                <ui:ScrollView name="threat-list" class="threat-list">
+                    <!-- rows injected at runtime by HUDController -->
+                </ui:ScrollView>
+            </ui:VisualElement>
+
+        </ui:VisualElement>
+
+        <!-- BOTTOM BAR -->
+        <ui:VisualElement class="bottom-bar">
+            <ui:Label text="S-400 TRIUMF  ·  40N6E / 48N6E2 / 9M96E2" class="bottom-info" />
+            <ui:Label name="bottom-center" text="DEFENCE PERIMETER ACTIVE" class="bottom-info bottom-info--hot" />
+            <ui:Label text="ESC = PAUSE  ·  ALL SYSTEMS NOMINAL" class="bottom-info" />
+        </ui:VisualElement>
+
+        <!-- PAUSE OVERLAY -->
+        <ui:VisualElement name="pause-overlay" class="pause-overlay">
+            <ui:Label text="— PAUSED —" class="pause-text" />
+        </ui:VisualElement>
+
+    </ui:VisualElement>
+</ui:UXML>

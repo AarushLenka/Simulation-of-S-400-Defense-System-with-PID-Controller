@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: StrategicBomberConfig
   m_EditorClassIdentifier: Assembly-CSharp::TargetConfig
   targetTypeName: StrategicBomber
-  minSpeed: 200
-  maxSpeed: 280
-  minAltitude: 8000
-  maxAltitude: 16000
+  minSpeed: 7
+  maxSpeed: 9
+  minAltitude: 250
+  maxAltitude: 375
   rcs: 100
-  maxManeuverG: 3
+  maxManeuverG: 2
   defaultThreat: 3
