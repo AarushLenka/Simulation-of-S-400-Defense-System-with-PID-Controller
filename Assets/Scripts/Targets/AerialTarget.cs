@@ -118,6 +118,18 @@ public abstract class AerialTarget : MonoBehaviour
         return 0f;
     }
 
+    // ── Terrain collision — destroy on impact ─────────────────────────────────
+
+    protected virtual void OnCollisionEnter(Collision collision)
+    {
+        // Destroy if we hit terrain or any static world geometry
+        if (collision.gameObject.GetComponent<UnityEngine.TerrainCollider>() != null)
+        {
+            Debug.Log($"[TARGET] {name} hit terrain — destroyed.");
+            Destroy(gameObject);
+        }
+    }
+
     // ── Terrain floor enforcement ─────────────────────────────────────────────
 
     private void EnforceTerrainFloor()
