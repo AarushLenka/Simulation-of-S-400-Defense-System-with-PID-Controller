@@ -1,50 +1,104 @@
 using UnityEngine;
 
+/// <summary>
+/// UAV loiters around the radar at config altitude.
+/// When tracked dives toward radar, resets to loiter if out of range.
+/// </summary>
 public class UAVDrone : AerialTarget
 {
     private enum State { Loiter, Dive }
-    private State state = State.Loiter;
+    private State _state = State.Loiter;
 
-    public Vector3 loiterCenter;
-    public float   loiterRadius = 200f;  // 1:40 scale (IRL ~8km loiter pattern)
-    public float   diveTargetY  = 100f;
-    private float  loiterAngle;
+    public float loiterRadius   = 1200f;
+    private float _loiterAngle;
+    private float _loiterAltitude;
 
     protected override void InitializeTarget()
     {
-        currentSpeed    = Random.Range(config.minSpeed, config.maxSpeed * 0.5f);
-        currentAltitude = Random.Range(config.minAltitude, config.maxAltitude);
-        loiterCenter    = transform.position;
+        currentSpeed    = Random.Range(config.minSpeed, config.maxSpeed * 0.6f);
+        _loiterAltitude = Random.Range(config.minAltitude, config.maxAltitude);
+
+        if (radarTarget != null)
+        {
+            _loiterAngle = Mathf.Atan2(
+                transform.position.z - radarTarget.position.z,
+                transform.position.x - radarTarget.position.x);
+            Vector3 dir = (radarTarget.position - transform.position).normalized;
+            rb.linearVelocity  = dir * currentSpeed;
+            transform.rotation = Quaternion.LookRotation(dir);
+        }
+        else
+        {
+            rb.linearVelocity = transform.forward * currentSpeed;
+        }
     }
 
     public override void UpdateMotion()
     {
-        switch (state)
+        // ── Hard out-of-range: snap back to loiter ────────────────────
+        if (IsOutOfRange())
+        {
+            _state = State.Loiter;
+            SteerTowardRadar(3f);
+            HoldAltitude(_loiterAltitude);
+            UpdateRotation();
+            currentAltitude = transform.position.y;
+            return;
+        }
+
+        switch (_state)
         {
             case State.Loiter:
-                // Circular holding pattern
-                loiterAngle += (currentSpeed / loiterRadius) * Time.fixedDeltaTime;
-                Vector3 offset = new Vector3(
-                    Mathf.Cos(loiterAngle), 0, Mathf.Sin(loiterAngle)) * loiterRadius;
-                Vector3 targetPos = loiterCenter + offset;
-                targetPos.y = currentAltitude;
-                rb.linearVelocity = (targetPos - transform.position).normalized * currentSpeed;
+            {
+                if (isTracked) { _state = State.Dive; break; }
 
-                // Commit to dive once tracked (simulates attack run or evasive descent)
-                if (isTracked) state = State.Dive;
+                _loiterAngle += (currentSpeed / loiterRadius) * Time.fixedDeltaTime;
+                Vector3 center    = radarTarget != null ? radarTarget.position : transform.position;
+                Vector3 orbitPos  = center
+                    + new Vector3(Mathf.Cos(_loiterAngle), 0f, Mathf.Sin(_loiterAngle)) * loiterRadius;
+                Vector3 dir       = (orbitPos - transform.position);
+                dir.y = 0f;
+                if (dir.sqrMagnitude > 0.01f)
+                    rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
+                        dir.normalized * currentSpeed, 4f * Time.fixedDeltaTime);
+
+                HoldAltitude(_loiterAltitude);
                 break;
+            }
 
             case State.Dive:
-                // Sharp descent, moderate speed increase
+            {
                 currentSpeed = Mathf.MoveTowards(currentSpeed,
-                    config.maxSpeed, 3f * Time.fixedDeltaTime);
-                Vector3 diveDir = new Vector3(transform.forward.x, -0.6f,
-                    transform.forward.z).normalized;
+                    config.maxSpeed, 4f * Time.fixedDeltaTime);
+
+                Vector3 diveTarget = radarTarget != null
+                    ? radarTarget.position + Vector3.up * 30f
+                    : transform.position + transform.forward * 200f;
+
+                Vector3 diveDir = (diveTarget - transform.position).normalized;
                 rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
-                    diveDir * currentSpeed, 2f * Time.fixedDeltaTime);
+                    diveDir * currentSpeed, 3f * Time.fixedDeltaTime);
+
+                // Once very close to radar, reset to loiter
+                if (radarTarget != null &&
+                    Vector3.Distance(transform.position, radarTarget.position) < 150f)
+                {
+                    currentSpeed = config.minSpeed;
+                    _state       = State.Loiter;
+                }
                 break;
+            }
         }
+
+        UpdateRotation();
         currentAltitude = transform.position.y;
-        transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
+        currentSpeed    = Mathf.Clamp(rb.linearVelocity.magnitude,
+                                       config.minSpeed, config.maxSpeed);
+    }
+
+    private void UpdateRotation()
+    {
+        if (rb.linearVelocity.sqrMagnitude > 0.01f)
+            transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
     }
 }

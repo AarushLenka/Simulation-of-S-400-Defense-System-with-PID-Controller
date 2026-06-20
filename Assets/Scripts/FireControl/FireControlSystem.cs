@@ -10,10 +10,26 @@ public class FireControlSystem : MonoBehaviour
     public GameObject   missilePrefab;
     public float        engagementRange  = 150000f;
     public float        reloadTime       = 3f;
-    public float        missileMaxSpeed  = 2000f;
+
+    // Derived at Start from the actual MissileController prefab — never set this manually
+    [HideInInspector] public float missileMaxSpeed = 2000f;
 
     private float lastLaunchTime;
     private HashSet<AerialTarget> engagedTargets = new HashSet<AerialTarget>();
+
+    void Start()
+    {
+        // Always read missile speed from the actual prefab so it can't get out of sync
+        if (missilePrefab != null)
+        {
+            var mc = missilePrefab.GetComponent<MissileController>();
+            if (mc != null)
+            {
+                missileMaxSpeed = mc.maxSpeed;
+                Debug.Log($"[FCS] Missile max speed read from prefab: {missileMaxSpeed} m/s");
+            }
+        }
+    }
 
     void Update()
     {
@@ -35,9 +51,11 @@ public class FireControlSystem : MonoBehaviour
             Vector3 toTarget = (contact.position - transform.position).normalized;
             float targetRadialSpeed = Vector3.Dot(contact.velocity, toTarget);
             float closingSpeed = missileMaxSpeed - targetRadialSpeed;
-            if (closingSpeed < 100f)
+            // At 1:40 scale, missile top speed is ~45 m/s.
+            // Threshold: require at least 5 m/s closing advantage (was 100 — unusable at this scale).
+            if (closingSpeed < 5f)
             {
-                Debug.LogWarning($"[FCS] {contact.target.name} uncatchable — closing speed {closingSpeed:F0} m/s");
+                Debug.LogWarning($"[FCS] {contact.target.name} uncatchable — closing speed {closingSpeed:F1} m/s");
                 continue;
             }
 

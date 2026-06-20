@@ -15,8 +15,8 @@ MonoBehaviour:
   targetTypeName: CruiseMissile
   minSpeed: 6
   maxSpeed: 8
-  minAltitude: 5
-  maxAltitude: 15
+  minAltitude: 2
+  maxAltitude: 4
   rcs: 0.05
   maxManeuverG: 3
   defaultThreat: 4

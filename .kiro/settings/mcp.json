@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "unity-mcp": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "unity-mcp-node"],
-      "disabled": false,
-      "autoApprove": ["Unity_RunCommand", "Unity_GetConsoleLogs", "Unity_Camera_Capture", "Unity_SceneView_CaptureMultiAngleSceneView", "Unity_SceneView_Capture2DScene"]
+    "unityMCP": {
+      "url": "http://127.0.0.1:8080/mcp",
+      "type": "http",
+      "env": {},
+      "disabled": false
     }
   }
 }

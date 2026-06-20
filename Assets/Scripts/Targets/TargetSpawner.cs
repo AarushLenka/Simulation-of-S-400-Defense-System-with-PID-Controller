@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.InputSystem;   // requires the Input System package
+using UnityEngine.InputSystem;
 
 public class TargetSpawner : MonoBehaviour
 {
@@ -12,34 +12,36 @@ public class TargetSpawner : MonoBehaviour
     public GameObject birdPrefab;
 
     [Header("Spawn Geometry")]
-    public Transform centerPoint;       // usually the Radar/S-400 GameObject
-    public float     spawnRadius = 50000f; // 50 km out
-    public float     debugSpawnRadius = 500f; // close spawn for testing visibility
+    public Transform centerPoint;           // Radar / S-400 GameObject
+    [Tooltip("Targets spawn on the edge of this radius (metres)")]
+    public float spawnRadius = 12000f;      // 12 km — within S-400 engagement envelope
+    [Tooltip("Debug key T spawns this close")]
+    public float debugSpawnRadius = 600f;
 
-    [Header("Auto-Spawn (optional, for unattended testing)")]
-    public bool  autoSpawnEnabled = false;
+    [Header("Auto-Spawn")]
+    public bool  autoSpawnEnabled  = false;
     public float autoSpawnInterval = 15f;
-    private float autoSpawnTimer;
+    private float _autoSpawnTimer;
 
     void Update()
     {
-        HandleCheatKeys();
+        HandleKeys();
 
         if (autoSpawnEnabled)
         {
-            autoSpawnTimer += Time.deltaTime;
-            if (autoSpawnTimer >= autoSpawnInterval)
+            _autoSpawnTimer += Time.deltaTime;
+            if (_autoSpawnTimer >= autoSpawnInterval)
             {
-                autoSpawnTimer = 0f;
+                _autoSpawnTimer = 0f;
                 SpawnRandom();
             }
         }
     }
 
-    void HandleCheatKeys()
+    void HandleKeys()
     {
         var kb = Keyboard.current;
-        if (kb == null) return;  // no keyboard device this frame
+        if (kb == null) return;
 
         if (kb.bKey.wasPressedThisFrame) Spawn(ballisticMissilePrefab);
         if (kb.cKey.wasPressedThisFrame) Spawn(cruiseMissilePrefab);
@@ -47,41 +49,98 @@ public class TargetSpawner : MonoBehaviour
         if (kb.rKey.wasPressedThisFrame) Spawn(bomberPrefab);
         if (kb.dKey.wasPressedThisFrame) for (int i = 0; i < 5; i++) Spawn(uavPrefab);
         if (kb.kKey.wasPressedThisFrame) for (int i = 0; i < 8; i++) Spawn(birdPrefab);
-
-        // T = debug spawn right next to radar so you can see it
         if (kb.tKey.wasPressedThisFrame) SpawnDebugClose(stealthFighterPrefab);
     }
 
     void SpawnRandom()
     {
         GameObject[] all = { stealthFighterPrefab, bomberPrefab, uavPrefab,
-                            cruiseMissilePrefab, ballisticMissilePrefab, birdPrefab };
+                             cruiseMissilePrefab, ballisticMissilePrefab, birdPrefab };
         Spawn(all[Random.Range(0, all.Length)]);
     }
 
+    // ── Core spawn ────────────────────────────────────────────────────────────
+
     void Spawn(GameObject prefab)
     {
-        if (prefab == null) { Debug.LogWarning("[SPAWNER] Prefab slot is empty"); return; }
+        if (prefab == null) { Debug.LogWarning("[SPAWNER] Prefab slot empty"); return; }
 
-        Vector2 randCircle = Random.insideUnitCircle.normalized * spawnRadius;
-        Vector3 spawnPos = centerPoint.position +
-            new Vector3(randCircle.x, Random.Range(100f, 400f), randCircle.y);
+        // Random point on the spawn circle
+        float angle  = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+        Vector3 xzPos = centerPoint.position
+                      + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * spawnRadius;
 
-        Quaternion facing = Quaternion.LookRotation(
-            (centerPoint.position - spawnPos).normalized);
+        // Use the prefab's TargetConfig for correct altitude band
+        float spawnAltitude = GetSpawnAltitude(prefab, xzPos);
+        Vector3 spawnPos    = new Vector3(xzPos.x, spawnAltitude, xzPos.z);
+
+        // Face the radar
+        Vector3 toRadar     = (centerPoint.position - spawnPos).normalized;
+        Quaternion facing   = toRadar != Vector3.zero
+                            ? Quaternion.LookRotation(toRadar)
+                            : Quaternion.identity;
 
         var go = Instantiate(prefab, spawnPos, facing);
-        Debug.Log($"[SPAWNER] Spawned {go.name} at {spawnPos} | dist={Vector3.Distance(centerPoint.position, spawnPos)/1000f:F1}km");
+
+        // Pass radar reference so targets can orbit/return
+        var target = go.GetComponent<AerialTarget>();
+        if (target != null) target.SetRadarTarget(centerPoint);
+
+        Debug.Log($"[SPAWNER] {go.name} at Y={spawnAltitude:F0}m, dist={spawnRadius/1000f:F1}km");
     }
 
     void SpawnDebugClose(GameObject prefab)
     {
-        if (prefab == null) { Debug.LogWarning("[SPAWNER] Prefab slot is empty"); return; }
+        if (prefab == null) return;
 
-        Vector3 spawnPos = centerPoint.position + new Vector3(debugSpawnRadius, 200f, 0f);
-        Quaternion facing = Quaternion.LookRotation((centerPoint.position - spawnPos).normalized);
+        float angle   = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+        Vector3 xzPos = centerPoint.position
+                      + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * debugSpawnRadius;
 
-        var obj = Instantiate(prefab, spawnPos, facing);
-        Debug.Log($"[SPAWNER] DEBUG spawn: {obj.name} at {spawnPos} | Layer: {LayerMask.LayerToName(obj.layer)}");
+        float spawnAltitude = GetSpawnAltitude(prefab, xzPos);
+        Vector3 spawnPos    = new Vector3(xzPos.x, spawnAltitude, xzPos.z);
+
+        Vector3 toRadar   = (centerPoint.position - spawnPos).normalized;
+        Quaternion facing = Quaternion.LookRotation(toRadar);
+
+        var go = Instantiate(prefab, spawnPos, facing);
+        var target = go.GetComponent<AerialTarget>();
+        if (target != null) target.SetRadarTarget(centerPoint);
+
+        Debug.Log($"[SPAWNER] DEBUG {go.name} at {spawnPos}");
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Reads the prefab's TargetConfig altitude range and picks a spawn Y above terrain.
+    /// </summary>
+    float GetSpawnAltitude(GameObject prefab, Vector3 xzPos)
+    {
+        float groundY = SampleTerrainHeight(xzPos);
+
+        var cfg = prefab.GetComponent<AerialTarget>()?.config;
+        if (cfg != null)
+        {
+            float alt = Random.Range(cfg.minAltitude, cfg.maxAltitude);
+            // Ensure we're above ground even for low-altitude types
+            return Mathf.Max(groundY + 20f, alt);
+        }
+
+        return groundY + 200f; // safe fallback
+    }
+
+    /// <summary>Terrain world-Y at a given XZ position.</summary>
+    float SampleTerrainHeight(Vector3 worldPos)
+    {
+        if (Physics.Raycast(new Vector3(worldPos.x, 5000f, worldPos.z),
+                            Vector3.down, out RaycastHit hit, 8000f, ~0,
+                            QueryTriggerInteraction.Ignore))
+            return hit.point.y;
+
+        Terrain t = Terrain.activeTerrain;
+        if (t != null) return t.SampleHeight(worldPos) + t.transform.position.y;
+
+        return 0f;
     }
 }

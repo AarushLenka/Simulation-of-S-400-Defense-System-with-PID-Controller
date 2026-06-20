@@ -1,65 +1,106 @@
 using UnityEngine;
 
+/// <summary>
+/// Terrain-hugging cruise missile. Follows ground contour, circles the radar
+/// once it arrives. Hard out-of-range return prevents runaway.
+/// </summary>
 public class CruiseMissile : AerialTarget
 {
-    public Transform[] waypoints;
-    public float terrainFollowHeight = 60f;
-    private int wpIndex = 0;
+    [Tooltip("Target height above terrain — 1:40 scale: IRL 30–100m → 1–3m")]
+    public float terrainFollowHeight = 3f;
 
-    // Fallback target when no waypoints set — fly toward the radar/center
-    private Transform fallbackTarget;
+    private float _orbitAngle;
+    private bool  _orbiting;
+    private const float OrbitRadius = 1200f;
 
     protected override void InitializeTarget()
     {
         currentSpeed = Random.Range(config.minSpeed, config.maxSpeed);
-        currentAltitude = Random.Range(config.minAltitude, config.maxAltitude);
-        rb.linearVelocity = transform.forward * currentSpeed;
 
-        // Use radar as fallback navigation target
-        var radar = FindFirstObjectByType<RadarAntenna>();
-        if (radar != null) fallbackTarget = radar.transform;
+        if (radarTarget != null)
+        {
+            Vector3 dir = (radarTarget.position - transform.position);
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.01f)
+            {
+                rb.linearVelocity  = dir.normalized * currentSpeed;
+                transform.rotation = Quaternion.LookRotation(dir.normalized);
+            }
+        }
+        else
+        {
+            rb.linearVelocity = transform.forward * currentSpeed;
+        }
     }
 
     public override void UpdateMotion()
     {
-        // Terrain following — stay at low altitude
-        if (Physics.Raycast(transform.position, Vector3.down,
-            out RaycastHit hit, 600f, LayerMask.GetMask("Terrain")))
-        {
-            float desiredY = hit.point.y + terrainFollowHeight;
-            Vector3 pos = transform.position;
-            pos.y = Mathf.Lerp(pos.y, desiredY, 3f * Time.fixedDeltaTime);
-            transform.position = pos;
-        }
+        // ── Terrain following (always active) ─────────────────────────
+        float groundY  = GetTerrainYBelow();
+        float desiredY = groundY + terrainFollowHeight;
+        Vector3 pos    = transform.position;
+        pos.y          = Mathf.Lerp(pos.y, desiredY, 8f * Time.fixedDeltaTime);
+        transform.position = pos;
 
-        // Navigation — use waypoints if available, otherwise head for radar
-        Vector3 navTarget = Vector3.zero;
-        bool hasNav = false;
+        // Terrain follower owns Y — zero out vertical velocity
+        Vector3 vel = rb.linearVelocity;
+        vel.y = 0f;
+        rb.linearVelocity = vel;
 
-        if (waypoints != null && wpIndex < waypoints.Length)
+        // ── Hard out-of-range return ──────────────────────────────────
+        if (IsOutOfRange())
         {
-            navTarget = waypoints[wpIndex].position;
-            hasNav = true;
-            if (Vector3.Distance(transform.position, navTarget) < 80f) wpIndex++;
+            _orbiting = false;
+            if (radarTarget != null)
+            {
+                Vector3 dir = (radarTarget.position - transform.position);
+                dir.y = 0f;
+                if (dir.sqrMagnitude > 0.01f)
+                    rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
+                        dir.normalized * currentSpeed, 6f * Time.fixedDeltaTime);
+            }
         }
-        else if (fallbackTarget != null)
+        else if (!_orbiting && radarTarget != null)
         {
-            navTarget = fallbackTarget.position;
-            hasNav = true;
-        }
+            // ── Approach ──────────────────────────────────────────────
+            float dist = Vector3.Distance(
+                new Vector3(transform.position.x, 0f, transform.position.z),
+                new Vector3(radarTarget.position.x, 0f, radarTarget.position.z));
 
-        if (hasNav)
+            if (dist < OrbitRadius * 1.1f)
+            {
+                _orbiting   = true;
+                _orbitAngle = Mathf.Atan2(
+                    transform.position.z - radarTarget.position.z,
+                    transform.position.x - radarTarget.position.x);
+            }
+            else
+            {
+                Vector3 dir = (radarTarget.position - transform.position);
+                dir.y = 0f;
+                if (dir.sqrMagnitude > 0.01f)
+                    rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
+                        dir.normalized * currentSpeed, 3f * Time.fixedDeltaTime);
+            }
+        }
+        else if (_orbiting && radarTarget != null)
         {
-            Vector3 dir = (navTarget - transform.position).normalized;
-            dir.y = 0f; // keep horizontal — terrain following handles altitude
-            if (dir != Vector3.zero)
-                rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, dir * currentSpeed, 2f * Time.fixedDeltaTime);
+            // ── Orbit at terrain level ────────────────────────────────
+            _orbitAngle += (currentSpeed / OrbitRadius) * Time.fixedDeltaTime;
+            Vector3 orbitPos = radarTarget.position
+                + new Vector3(Mathf.Cos(_orbitAngle), 0f, Mathf.Sin(_orbitAngle)) * OrbitRadius;
+            Vector3 dir = (orbitPos - transform.position);
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.01f)
+                rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
+                    dir.normalized * currentSpeed, 4f * Time.fixedDeltaTime);
         }
 
         if (rb.linearVelocity.sqrMagnitude > 0.01f)
             transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
 
         currentAltitude = transform.position.y;
-        currentSpeed    = rb.linearVelocity.magnitude;
+        currentSpeed    = Mathf.Clamp(rb.linearVelocity.magnitude,
+                                       config.minSpeed, config.maxSpeed);
     }
 }
