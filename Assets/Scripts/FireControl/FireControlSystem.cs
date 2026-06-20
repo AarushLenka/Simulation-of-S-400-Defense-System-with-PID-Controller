@@ -8,7 +8,7 @@ public class FireControlSystem : MonoBehaviour
     public RadarAntenna radar;
     public Transform[]  launcherPositions;
     public GameObject   missilePrefab;
-    public float        engagementRange  = 150000f;
+    public float        engagementRange  = 5000f;   // REF §5.1: 200km IRL → /40 = 5000m
     public float        reloadTime       = 3f;
 
     // Derived at Start from the actual MissileController prefab — never set this manually
@@ -88,15 +88,14 @@ public class FireControlSystem : MonoBehaviour
         yield return new WaitForSeconds(delay);
         if (target == null) { Debug.LogWarning("[FCS] Target destroyed before launch"); yield break; }
 
-        Vector3 dir = (target.transform.position - launcher.position).normalized;
-        if (dir == Vector3.zero) dir = Vector3.up;
-
-        GameObject m = Instantiate(missilePrefab, launcher.position, Quaternion.LookRotation(dir));
+        // REF §5.4 — Vertical cold-launch: spawn pointing straight up.
+        // MissileController pitchover guidance takes it from there.
+        GameObject m = Instantiate(missilePrefab, launcher.position, Quaternion.LookRotation(Vector3.up));
         var mc = m.GetComponent<MissileController>();
         if (mc != null)
         {
             mc.Initialize(target);
-            Debug.Log($"[FCS] Interceptor launched from {launcher.name} → {target.name}");
+            Debug.Log($"[FCS] Interceptor launched (vertical) from {launcher.name} → {target.name}");
         }
         else
             Debug.LogError($"[FCS] MissileController missing on: {missilePrefab.name}");

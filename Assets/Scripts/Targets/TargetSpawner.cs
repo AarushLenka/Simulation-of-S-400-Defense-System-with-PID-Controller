@@ -113,7 +113,8 @@ public class TargetSpawner : MonoBehaviour
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Reads the prefab's TargetConfig altitude range and picks a spawn Y above terrain.
+    /// Reads the prefab's TargetConfig altitude range and returns a world Y spawn position.
+    /// Config altitudes are treated as height ABOVE TERRAIN, not absolute world Y.
     /// </summary>
     float GetSpawnAltitude(GameObject prefab, Vector3 xzPos)
     {
@@ -122,12 +123,12 @@ public class TargetSpawner : MonoBehaviour
         var cfg = prefab.GetComponent<AerialTarget>()?.config;
         if (cfg != null)
         {
-            float alt = Random.Range(cfg.minAltitude, cfg.maxAltitude);
-            // Ensure we're above ground even for low-altitude types
-            return Mathf.Max(groundY + 20f, alt);
+            // Config altitudes = above-terrain height, so add ground elevation
+            float agl = Random.Range(cfg.minAltitude, cfg.maxAltitude);
+            return groundY + Mathf.Max(agl, 20f); // always at least 20m above ground
         }
 
-        return groundY + 200f; // safe fallback
+        return groundY + 200f;
     }
 
     /// <summary>Terrain world-Y at a given XZ position.</summary>

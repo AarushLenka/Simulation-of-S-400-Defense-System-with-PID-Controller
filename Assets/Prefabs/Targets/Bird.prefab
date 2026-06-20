@@ -27,14 +27,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3697855691399201161}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -0, z: 0}
   m_LocalScale: {x: 3.13, y: 3.13, z: 3.13}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 5596238485996121386}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: -90, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!54 &2199307444256032231
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -81,8 +81,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.74, y: 0.34, z: 0.06}
-  m_Center: {x: 0, y: 0, z: 0.34}
+  m_Size: {x: 0.52, y: 0.05, z: 0.32}
+  m_Center: {x: 0, y: 0.34, z: 0}
 --- !u!114 &9002424046428620158
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -102,7 +102,10 @@ MonoBehaviour:
   threatLevel: 0
   isDetected: 0
   isTracked: 0
+  engagementRadius: 14000
+  minTerrainClearance: 15
   separationDist: 5
+  flockAltitude: 10
 --- !u!1001 &5342232595504974529
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -137,11 +140,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 0.7071068
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0.7071068
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
       propertyPath: m_LocalRotation.y
@@ -149,7 +152,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x

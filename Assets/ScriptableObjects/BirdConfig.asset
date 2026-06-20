@@ -15,8 +15,8 @@ MonoBehaviour:
   targetTypeName: Bird
   minSpeed: 0.2
   maxSpeed: 0.5
-  minAltitude: 0
-  maxAltitude: 25
+  minAltitude: 100
+  maxAltitude: 300
   rcs: 0.0005
   maxManeuverG: 1
   defaultThreat: 0

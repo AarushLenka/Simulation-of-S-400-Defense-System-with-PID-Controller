@@ -15,8 +15,8 @@ MonoBehaviour:
   targetTypeName: UAVDrone
   minSpeed: 2
   maxSpeed: 5
-  minAltitude: 25
-  maxAltitude: 150
+  minAltitude: 250
+  maxAltitude: 400
   rcs: 0.01
   maxManeuverG: 2
   defaultThreat: 2

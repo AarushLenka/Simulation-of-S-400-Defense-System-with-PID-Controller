@@ -15,8 +15,8 @@ MonoBehaviour:
   targetTypeName: StealthFighter
   minSpeed: 15
   maxSpeed: 17
-  minAltitude: 125
-  maxAltitude: 375
+  minAltitude: 1000
+  maxAltitude: 1500
   rcs: 0.001
   maxManeuverG: 9
   defaultThreat: 4

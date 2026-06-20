@@ -28,9 +28,9 @@ Transform:
   m_GameObject: {fileID: 5996905066819867014}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -14.63173, y: 0, z: -19.60689}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 3000, y: 3000, z: 3000}
+  m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 2258103854672235201}
   m_Father: {fileID: 0}
@@ -81,10 +81,10 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 2.1
-  m_Height: 73.1
+  m_Radius: 0.0005
+  m_Height: 0.0155
   m_Direction: 2
-  m_Center: {x: -41.3, y: -1.68, z: -5}
+  m_Center: {x: -0.0006, y: 0.0006, z: 0}
 --- !u!114 &-412690838254915000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -97,28 +97,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 836c11a604d485d48b4da12fd5a34ceb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MissileController
-  Kp_pitch: 2.5
-  Ki_pitch: 0.05
-  Kd_pitch: 0.6
-  Kp_yaw: 2.5
-  Ki_yaw: 0.05
-  Kd_yaw: 0.6
-  Kp_pitchRate: 6
-  Ki_pitchRate: 0.02
-  Kd_pitchRate: 0.3
-  Kp_yawRate: 6
-  Ki_yawRate: 0.02
-  Kd_yawRate: 0.3
-  maxTurnRate: 25
-  Kp_throttle: 2
-  Ki_throttle: 0
-  Kd_throttle: 0.5
-  navConstant: 4
-  losFilterAlpha: 0.25
+  launchSpeed: 20
   maxSpeed: 2000
-  maxAccel: 300
-  terminalRange: 5000
+  thrustForce: 120
+  navConstant: 4
+  kP: 15
+  kI: 0.5
+  kD: 2
   fuzeRadius: 50
+  lifetime: 30
 --- !u!1001 &1791548646845623594
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -129,27 +116,27 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 6347589b1d1c4a74dba2ea450a92bf92, type: 3}
       propertyPath: m_LocalScale.x
-      value: 5000
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 6347589b1d1c4a74dba2ea450a92bf92, type: 3}
       propertyPath: m_LocalScale.y
-      value: 5000
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 6347589b1d1c4a74dba2ea450a92bf92, type: 3}
       propertyPath: m_LocalScale.z
-      value: 5000
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 6347589b1d1c4a74dba2ea450a92bf92, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -41.20199
+      value: -0.0006
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 6347589b1d1c4a74dba2ea450a92bf92, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 105.3
+      value: 0.022
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 6347589b1d1c4a74dba2ea450a92bf92, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 191.94395
+      value: 0.0398
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 6347589b1d1c4a74dba2ea450a92bf92, type: 3}
       propertyPath: m_LocalRotation.w

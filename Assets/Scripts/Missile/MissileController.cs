@@ -1,124 +1,163 @@
 using UnityEngine;
 
 /// <summary>
-/// Simple, stable missile guidance.
-/// Uses Pure Pursuit until terminal phase, then Proportional Navigation.
-/// No cascaded PIDs — just direct velocity steering with a turn-rate limit.
+/// REF §6 — S-400 interceptor guidance.
+/// 
+/// Launch: spawned pointing straight up (cold-launch vertical ejection).
+///         Immediately begins pitchover toward target via PN + PID.
+///
+/// Guidance chain (spec §6):
+///   Radar → Threat Assessment → Target Assignment
+///   → PN Guidance (strategist: computes desired LOS rate correction)
+///   → PID Controller (pilot: applies AddTorque to achieve desired turn rate)
+///   → Rigidbody → Missile Motion
+///
+/// PN is always active — no mode switching.
+/// PID drives AddTorque, not direct velocity assignment.
+/// Speed: thrust via AddForce along transform.forward.
 /// </summary>
 public class MissileController : MonoBehaviour
 {
-    [Header("Speed")]
-    public float launchSpeed   = 20f;    // m/s initial (1:40 scale — IRL ~800 m/s)
-    public float maxSpeed      = 45f;    // m/s top (1:40 scale — IRL ~1800 m/s 9M96E2)
-    public float acceleration  = 8f;     // m/s²
+    [Header("Speed — 1:40 scale")]
+    public float launchSpeed  = 20f;   // m/s  (IRL ~800 m/s)
+    public float maxSpeed     = 45f;   // m/s  (IRL ~1800 m/s 9M96E2)
+    public float thrustForce  = 120f;  // N/kg (gives ~3 s to max speed)
 
-    [Header("Maneuverability")]
-    public float maxTurnRate   = 90f;    // deg/s — high agility needed to catch slow targets
-    public float terminalRange = 80f;    // switch to PN inside this range
+    [Header("Proportional Navigation")]
+    [Tooltip("Navigation constant N'. Typical value 3–5.")]
+    public float navConstant  = 4f;
 
-    [Header("Warhead")]
-    public float fuzeRadius    = 8f;     // proximity detonation (1:40 scale — IRL ~320m)
+    [Header("PID — attitude control")]
+    public float kP = 15f;
+    public float kI = 0.5f;
+    public float kD = 2f;
 
-    [Header("Proportional Nav")]
-    public float navConstant   = 4f;     // N' for PN guidance
+    [Header("Warhead — 1:40 scale")]
+    [Tooltip("Proximity fuze radius — IRL ~320m → /40 = 8m")]
+    public float fuzeRadius   = 8f;
 
-    // ── private state ──────────────────────────────────────────────
-    private Rigidbody  rb;
+    [Header("Self-destruct")]
+    [Tooltip("Destroy missile after this many seconds if no hit (fuel exhaustion)")]
+    public float lifetime     = 30f;
+
+    // ── Private state ──────────────────────────────────────────────
+    private Rigidbody    rb;
     private AerialTarget target;
-    private float      currentSpeed;
-    private Vector3    lastLOS;
-    private bool       losInit;
+    private float        _currentSpeed;
+    private float        _elapsed;
+
+    // PID state
+    private Vector3 _pidIntegral;
+    private Vector3 _pidLastError;
+
+    // PN state
+    private Vector3 _lastLOS;
+    private bool    _losInit;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
-        rb.useGravity = false;
+        rb.useGravity    = false;
         rb.linearDamping = 0f;
-        rb.angularDamping = 0.05f;
+        rb.angularDamping = 0.1f;
     }
 
+    /// <summary>Called by FCS immediately after instantiation.</summary>
     public void Initialize(AerialTarget t)
     {
-        target = t;
-        currentSpeed = launchSpeed;
-        rb.linearVelocity = transform.forward * currentSpeed;
-        Debug.Log($"[MISSILE] Initialized → tracking {t.name} | launch speed={launchSpeed}m/s");
+        target        = t;
+        _currentSpeed = launchSpeed;
+        // Missile starts pointing straight up (vertical launch per spec §5.4 / §6)
+        // Initial velocity is straight up — PN/PID pitchover starts immediately
+        rb.linearVelocity = Vector3.up * _currentSpeed;
+        Debug.Log($"[MISSILE] Vertical launch → tracking {t.name}");
     }
 
     void FixedUpdate()
     {
-        if (target == null) return;
+        _elapsed += Time.fixedDeltaTime;
+
+        // Self-destruct on fuel exhaustion
+        if (_elapsed > lifetime)
+        {
+            Debug.Log("[MISSILE] Fuel exhausted — self-destructing");
+            SelfDestruct();
+            return;
+        }
+
+        if (target == null)
+        {
+            SelfDestruct();
+            return;
+        }
 
         float dist = Vector3.Distance(transform.position, target.transform.position);
 
         // Proximity fuze
         if (dist < fuzeRadius)
         {
-            Debug.Log($"[MISSILE] DETONATION — proximity fuze triggered at {dist:F0}m from {target.name}");
+            Debug.Log($"[MISSILE] DETONATION at {dist:F1}m from {target.name}");
             Detonate();
             return;
         }
 
-        // Accelerate toward max speed
-        currentSpeed = Mathf.MoveTowards(currentSpeed, maxSpeed, acceleration * Time.fixedDeltaTime);
+        // ── Thrust: accelerate along current forward direction ────────
+        _currentSpeed = Mathf.MoveTowards(_currentSpeed, maxSpeed,
+            (thrustForce / Mathf.Max(rb.mass, 0.001f)) * Time.fixedDeltaTime);
+        rb.AddForce(transform.forward * thrustForce, ForceMode.Acceleration);
+        // Clamp speed
+        if (rb.linearVelocity.magnitude > maxSpeed)
+            rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
 
-        if (dist < terminalRange)
-            SteerProportionalNav();
-        else
-            SteerPursuit();
+        // ── PN Guidance → desired turn direction ──────────────────────
+        Vector3 desiredDir = ComputePNDirection();
 
-        // Always drive forward at current speed
-        rb.linearVelocity = transform.forward * currentSpeed;
+        // ── PID → torque to rotate toward desired direction ───────────
+        ApplyPIDTorque(desiredDir);
     }
 
     /// <summary>
-    /// Pure Pursuit — point nose directly at predicted intercept point.
-    /// Simple and stable at long range.
+    /// Proportional Navigation — always active (spec §6).
+    /// Returns the desired heading unit vector.
     /// </summary>
-    void SteerPursuit()
-    {
-        // Lead target by one time-of-flight estimate
-        float tof = Vector3.Distance(transform.position, target.transform.position)
-                    / Mathf.Max(currentSpeed, 1f);
-        Vector3 aimPoint = target.transform.position + target.Rb.linearVelocity * tof * 0.5f;
-        Vector3 desired  = (aimPoint - transform.position).normalized;
-
-        RotateToward(desired);
-    }
-
-    /// <summary>
-    /// Proportional Navigation — commands acceleration proportional to LOS rate.
-    /// More accurate in terminal phase.
-    /// </summary>
-    void SteerProportionalNav()
+    Vector3 ComputePNDirection()
     {
         Vector3 toTarget = target.transform.position - transform.position;
         Vector3 LOS      = toTarget.normalized;
 
-        if (!losInit) { lastLOS = LOS; losInit = true; }
+        if (!_losInit) { _lastLOS = LOS; _losInit = true; return LOS; }
 
-        Vector3 LOSrate = (LOS - lastLOS) / Time.fixedDeltaTime;
-        lastLOS = LOS;
+        // LOS rate (change in line-of-sight direction per second)
+        Vector3 LOSrate = (LOS - _lastLOS) / Time.fixedDeltaTime;
+        _lastLOS = LOS;
 
-        // PN acceleration command
-        Vector3 accelCmd = navConstant * currentSpeed * LOSrate;
+        // PN acceleration command: a_cmd = N * Vc * omega
+        // where Vc = closing velocity, omega = LOS rate
+        float closingVel = Vector3.Dot(rb.linearVelocity - target.Rb.linearVelocity, -LOS);
+        Vector3 accelCmd = navConstant * Mathf.Abs(closingVel) * LOSrate;
 
-        // Convert to a desired direction
+        // Desired direction = current forward + PN correction
         Vector3 desired = (transform.forward + accelCmd * Time.fixedDeltaTime).normalized;
-        RotateToward(desired);
+        return desired;
     }
 
     /// <summary>
-    /// Smoothly rotates the missile nose toward the desired direction,
-    /// clamped by maxTurnRate.
+    /// PID attitude controller — applies AddTorque to steer nose toward desiredDir.
+    /// This is the "pilot" that physically executes the PN command (spec §6).
     /// </summary>
-    void RotateToward(Vector3 desiredDir)
+    void ApplyPIDTorque(Vector3 desiredDir)
     {
-        if (desiredDir == Vector3.zero) return;
+        if (desiredDir.sqrMagnitude < 0.001f) return;
 
-        Quaternion targetRot = Quaternion.LookRotation(desiredDir);
-        float maxDeg = maxTurnRate * Time.fixedDeltaTime;
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRot, maxDeg);
+        // Angular error: cross product gives rotation axis * sin(angle)
+        Vector3 error = Vector3.Cross(transform.forward, desiredDir);
+
+        _pidIntegral  += error * Time.fixedDeltaTime;
+        Vector3 derivative = (error - _pidLastError) / Time.fixedDeltaTime;
+        _pidLastError  = error;
+
+        Vector3 torque = kP * error + kI * _pidIntegral + kD * derivative;
+        rb.AddTorque(torque, ForceMode.Acceleration);
     }
 
     void Detonate()
@@ -130,21 +169,25 @@ public class MissileController : MonoBehaviour
         bool hit = target != null;
         if (target != null) Destroy(target.gameObject);
 
-        // Notify FCS
-        var fcs = FindFirstObjectByType<FireControlSystem>();
-        if (fcs != null) fcs.OnMissileTerminated(hit);
-
+        NotifyFCS(hit);
         Destroy(gameObject);
     }
 
-    // Called when missile runs out of time/fuel without hitting
+    void SelfDestruct()
+    {
+        NotifyFCS(false);
+        Destroy(gameObject);
+    }
+
+    void NotifyFCS(bool hit)
+    {
+        var fcs = FindFirstObjectByType<FireControlSystem>();
+        if (fcs != null) fcs.OnMissileTerminated(hit);
+    }
+
     void OnDestroy()
     {
-        // If target still alive when we're destroyed (not via Detonate), register miss
-        if (target != null)
-        {
-            var fcs = FindFirstObjectByType<FireControlSystem>();
-            if (fcs != null) fcs.OnMissileTerminated(false);
-        }
+        // Guard: if destroyed externally (not via Detonate/SelfDestruct), still notify FCS
+        if (target != null) NotifyFCS(false);
     }
 }

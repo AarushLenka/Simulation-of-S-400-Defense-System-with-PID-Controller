@@ -15,8 +15,8 @@ MonoBehaviour:
   targetTypeName: StrategicBomber
   minSpeed: 7
   maxSpeed: 9
-  minAltitude: 250
-  maxAltitude: 375
+  minAltitude: 900
+  maxAltitude: 1200
   rcs: 100
   maxManeuverG: 2
   defaultThreat: 3

@@ -1,33 +1,40 @@
 using UnityEngine;
 
 /// <summary>
-/// High-altitude fast jet. Approaches radar, orbits it, evades when tracked.
-/// Always returns to engagement zone — out-of-range overrides all other states.
+/// REF §2.1 — Three states: Cruise → Evade → Dash (terminal, never returns).
+/// Cruise: straight inbound at minSpeed.
+/// Evade: triggered by isTracked, high-G 90° yaw break for 3 seconds.
+///        Evade direction locked at state entry — never recalculated from transform.forward.
+/// Dash: accelerates to maxSpeed on locked heading indefinitely.
 /// </summary>
 public class StealthFighter : AerialTarget
 {
-    private enum State { Approach, Orbit, Evade, Dash }
-    private State _state = State.Approach;
-
+    private enum State { Cruise, Evade, Dash }
+    private State   _state     = State.Cruise;
     private float   _evadeTimer;
     private float   _targetAltitude;
-    private float   _orbitAngle;
-    private Vector3 _dashDir;   // locked direction, never recalculated from transform.forward
-    private float   _dashTimer;
-    private const float OrbitRadius  = 3500f;
-    private const float DashDuration = 3f;
+    private Vector3 _dashDir;    // locked at Dash entry
+    private Vector3 _evadeDir;   // locked at Evade entry — never recalculated
 
     protected override void InitializeTarget()
     {
-        currentSpeed    = config.minSpeed;
-        _targetAltitude = Random.Range(config.minAltitude, config.maxAltitude);
+        currentSpeed = config.minSpeed;
+        // Sample terrain at spawn position using the Terrain API directly —
+        // GetTerrainYBelow() raycasts from transform.position which is correct here
+        // because Start() runs after the object is placed at its spawn point.
+        float groundHere = GetTerrainYBelow();
+        _targetAltitude  = groundHere + Random.Range(config.minAltitude, config.maxAltitude);
 
-        // Face radar from the start
+        // Face radar on spawn
         if (radarTarget != null)
         {
-            Vector3 dir = (radarTarget.position - transform.position).normalized;
-            rb.linearVelocity = dir * currentSpeed;
-            transform.rotation = Quaternion.LookRotation(dir);
+            Vector3 toRadar = (radarTarget.position - transform.position);
+            toRadar.y = 0f; // horizontal heading only — altitude held separately
+            if (toRadar.sqrMagnitude > 0.001f)
+            {
+                transform.rotation = Quaternion.LookRotation(toRadar.normalized);
+                rb.linearVelocity  = toRadar.normalized * currentSpeed;
+            }
         }
         else
         {
@@ -37,113 +44,88 @@ public class StealthFighter : AerialTarget
 
     public override void UpdateMotion()
     {
-        // ── Out-of-range: hard override — nothing else runs ───────────
-        if (IsOutOfRange())
-        {
-            _state = State.Approach;
-            SteerTowardRadar(3f);
-            HoldAltitude(_targetAltitude);
-            UpdateRotation();
-            currentSpeed    = config.minSpeed;
-            currentAltitude = transform.position.y;
-            return;
-        }
-
         switch (_state)
         {
-            // ── Approach ──────────────────────────────────────────────
-            case State.Approach:
-            {
-                if (radarTarget == null) break;
-                float dist = Vector3.Distance(transform.position, radarTarget.position);
-                if (dist < OrbitRadius * 1.1f)
-                {
-                    _state      = State.Orbit;
-                    _orbitAngle = Mathf.Atan2(
-                        transform.position.z - radarTarget.position.z,
-                        transform.position.x - radarTarget.position.x);
-                    break;
-                }
-                SteerTowardRadar(2f);
-                HoldAltitude(_targetAltitude);
-                break;
-            }
-
-            // ── Orbit ─────────────────────────────────────────────────
-            case State.Orbit:
-            {
-                if (isTracked) { _state = State.Evade; _evadeTimer = 3.5f; break; }
-
-                _orbitAngle += (currentSpeed / OrbitRadius) * Time.fixedDeltaTime;
+            // ── Cruise: straight inbound at constant altitude ─────────
+            case State.Cruise:
                 if (radarTarget != null)
                 {
-                    Vector3 orbitPos = radarTarget.position
-                        + new Vector3(Mathf.Cos(_orbitAngle), 0f, Mathf.Sin(_orbitAngle)) * OrbitRadius;
-                    Vector3 dir = (orbitPos - transform.position);
-                    dir.y = 0f;
-                    if (dir.sqrMagnitude > 0.01f)
-                        rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
-                            dir.normalized * currentSpeed, 4f * Time.fixedDeltaTime);
+                    Vector3 toRadar = radarTarget.position - transform.position;
+                    toRadar.y = 0f;
+                    if (toRadar.sqrMagnitude > 0.001f)
+                    {
+                        // Only steer XZ — HoldAltitude owns Y, do NOT overwrite full velocity
+                        Vector3 vel = rb.linearVelocity;
+                        Vector3 xzTarget = toRadar.normalized * currentSpeed;
+                        vel.x = Mathf.Lerp(vel.x, xzTarget.x, 4f * Time.fixedDeltaTime);
+                        vel.z = Mathf.Lerp(vel.z, xzTarget.z, 4f * Time.fixedDeltaTime);
+                        rb.linearVelocity = vel;
+                    }
                 }
                 HoldAltitude(_targetAltitude);
-                break;
-            }
 
-            // ── Evade ─────────────────────────────────────────────────
+                if (isTracked)
+                {
+                    // Lock evade direction NOW at state entry — 90° yaw from current horizontal heading
+                    Vector3 currentFlat = rb.linearVelocity;
+                    currentFlat.y = 0f;
+                    if (currentFlat.sqrMagnitude < 0.001f) currentFlat = transform.forward;
+                    // Rotate 90° around world up — locked once, never touched again
+                    _evadeDir   = Quaternion.Euler(0f, 90f, 0f) * currentFlat.normalized;
+                    _state      = State.Evade;
+                    _evadeTimer = 3f;
+                }
+                break;
+
+            // ── Evade: hard turn onto locked heading, hold altitude ────
             case State.Evade:
-            {
                 _evadeTimer -= Time.fixedDeltaTime;
-                // Evade perpendicular to radar direction, not transform.forward
-                if (radarTarget != null)
+
+                // Snap XZ velocity toward the locked evade direction aggressively
+                // High lerp rate (12×dt ≈ 0.24/tick) gives a sharp, visible break
                 {
-                    Vector3 toRadar = (radarTarget.position - transform.position).normalized;
-                    Vector3 evadeDir = Vector3.Cross(toRadar, Vector3.up).normalized;
-                    // Alternate left/right each evade cycle
-                    evadeDir *= (Mathf.Sin(_evadeTimer * 2f) > 0f ? 1f : -1f);
-                    rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
-                        evadeDir * currentSpeed * 1.1f, 2f * Time.fixedDeltaTime);
+                    Vector3 vel = rb.linearVelocity;
+                    Vector3 xzEvade = _evadeDir * currentSpeed * 1.15f;
+                    vel.x = Mathf.Lerp(vel.x, xzEvade.x, 12f * Time.fixedDeltaTime);
+                    vel.z = Mathf.Lerp(vel.z, xzEvade.z, 12f * Time.fixedDeltaTime);
+                    rb.linearVelocity = vel;
                 }
-                HoldAltitude(_targetAltitude + Random.Range(-200f, 200f), 1f);
+                HoldAltitude(_targetAltitude);
+
                 if (_evadeTimer <= 0f)
                 {
-                    // Lock dash direction toward radar before entering dash
-                    _dashDir   = radarTarget != null
-                        ? (radarTarget.position - transform.position).normalized
-                        : rb.linearVelocity.normalized;
-                    _dashTimer = DashDuration;
-                    _state     = State.Dash;
+                    // Lock dash direction from current flat velocity
+                    Vector3 flatVel = rb.linearVelocity;
+                    flatVel.y = 0f;
+                    _dashDir = flatVel.sqrMagnitude > 0.01f
+                        ? flatVel.normalized
+                        : _evadeDir;
+                    _state = State.Dash;
                 }
                 break;
-            }
 
-            // ── Dash ──────────────────────────────────────────────────
+            // ── Dash: supersonic sprint on locked HORIZONTAL heading ───
             case State.Dash:
-            {
-                _dashTimer -= Time.fixedDeltaTime;
-                // Accelerate along the locked direction — never recalculates from transform.forward
                 currentSpeed = Mathf.MoveTowards(currentSpeed,
-                    config.maxSpeed, 12f * Time.fixedDeltaTime);
-                rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
-                    _dashDir * currentSpeed, 5f * Time.fixedDeltaTime);
-
-                if (_dashTimer <= 0f)
-                {
-                    currentSpeed = config.minSpeed;
-                    _state       = State.Orbit;
-                }
+                    config.maxSpeed, 5f * Time.fixedDeltaTime);
+                // Drive only XZ from locked direction — HoldAltitude owns Y
+                Vector3 dashVel = rb.linearVelocity;
+                dashVel.x = Mathf.Lerp(dashVel.x, _dashDir.x * currentSpeed, 6f * Time.fixedDeltaTime);
+                dashVel.z = Mathf.Lerp(dashVel.z, _dashDir.z * currentSpeed, 6f * Time.fixedDeltaTime);
+                rb.linearVelocity = dashVel;
+                HoldAltitude(_targetAltitude);
                 break;
-            }
         }
 
-        UpdateRotation();
-        currentAltitude = transform.position.y;
-        currentSpeed    = Mathf.Clamp(rb.linearVelocity.magnitude,
-                                       config.minSpeed, config.maxSpeed);
-    }
-
-    private void UpdateRotation()
-    {
         if (rb.linearVelocity.sqrMagnitude > 0.01f)
             transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
+
+        currentAltitude = transform.position.y;
+
+        // currentSpeed = horizontal magnitude only — never include vel.y from HoldAltitude
+        // otherwise the altitude controller inflates speed every tick (feedback loop)
+        Vector3 hVel = rb.linearVelocity;
+        hVel.y = 0f;
+        currentSpeed = Mathf.Clamp(hVel.magnitude, 0f, config.maxSpeed);
     }
 }

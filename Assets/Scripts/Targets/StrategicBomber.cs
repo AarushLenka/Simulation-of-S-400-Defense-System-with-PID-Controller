@@ -1,26 +1,32 @@
 using UnityEngine;
 
 /// <summary>
-/// Large, slow, high-altitude bomber. Approaches radar in a wide orbit,
-/// holds altitude band. Hard out-of-range return prevents runaway.
+/// REF §2.2 — No state machine. Straight and level forever.
+/// Never evades, never changes speed, never reacts to isTracked.
+/// Only active behaviour: gentle altitude correction back to cruise altitude
+/// if physics nudges it off level flight.
 /// </summary>
 public class StrategicBomber : AerialTarget
 {
-    private float _targetAltitude;
-    private float _orbitAngle;
-    private const float OrbitRadius = 5000f;
-    private bool  _orbiting;
+    private float _cruiseAltitude;
 
     protected override void InitializeTarget()
     {
-        currentSpeed    = Random.Range(config.minSpeed, config.maxSpeed);
-        _targetAltitude = Random.Range(config.minAltitude, config.maxAltitude);
+        currentSpeed = Random.Range(config.minSpeed, config.maxSpeed);
+        float groundAtRadar = radarTarget != null ? GetTerrainYBelow() : 0f;
+        _cruiseAltitude = groundAtRadar + Random.Range(config.minAltitude, config.maxAltitude);
 
+        // Straight inbound heading toward radar
         if (radarTarget != null)
         {
-            Vector3 dir = (radarTarget.position - transform.position).normalized;
-            rb.linearVelocity  = dir * currentSpeed;
-            transform.rotation = Quaternion.LookRotation(dir);
+            Vector3 dir = (radarTarget.position - transform.position);
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.001f)
+            {
+                dir = dir.normalized;
+                transform.rotation = Quaternion.LookRotation(dir);
+                rb.linearVelocity  = dir * currentSpeed;
+            }
         }
         else
         {
@@ -30,53 +36,26 @@ public class StrategicBomber : AerialTarget
 
     public override void UpdateMotion()
     {
-        // ── Hard out-of-range return ──────────────────────────────────
-        if (IsOutOfRange())
+        // XZ: maintain heading — lerp only horizontal components, never zero out Y
+        Vector3 horizontal = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+        if (horizontal.sqrMagnitude > 0.001f)
         {
-            _orbiting = false;
-            SteerTowardRadar(2f);
-            HoldAltitude(_targetAltitude, 1.5f);
-            if (rb.linearVelocity.sqrMagnitude > 0.01f)
-                transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
-            currentAltitude = transform.position.y;
-            return;
+            Vector3 vel = rb.linearVelocity;
+            Vector3 xzTarget = horizontal.normalized * currentSpeed;
+            vel.x = Mathf.Lerp(vel.x, xzTarget.x, 2f * Time.fixedDeltaTime);
+            vel.z = Mathf.Lerp(vel.z, xzTarget.z, 2f * Time.fixedDeltaTime);
+            rb.linearVelocity = vel;
         }
 
-        // ── Approach ──────────────────────────────────────────────────
-        if (!_orbiting && radarTarget != null)
-        {
-            float dist = Vector3.Distance(transform.position, radarTarget.position);
-            if (dist < OrbitRadius * 1.1f)
-            {
-                _orbiting   = true;
-                _orbitAngle = Mathf.Atan2(
-                    transform.position.z - radarTarget.position.z,
-                    transform.position.x - radarTarget.position.x);
-            }
-            else
-            {
-                SteerTowardRadar(1.5f);
-            }
-        }
-
-        // ── Orbit ─────────────────────────────────────────────────────
-        if (_orbiting && radarTarget != null)
-        {
-            _orbitAngle += (currentSpeed / OrbitRadius) * Time.fixedDeltaTime;
-            Vector3 orbitPos = radarTarget.position
-                + new Vector3(Mathf.Cos(_orbitAngle), 0f, Mathf.Sin(_orbitAngle)) * OrbitRadius;
-            Vector3 dir = (orbitPos - transform.position);
-            dir.y = 0f;
-            if (dir.sqrMagnitude > 0.01f)
-                rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
-                    dir.normalized * currentSpeed, 2f * Time.fixedDeltaTime);
-        }
-
-        HoldAltitude(_targetAltitude, 1.5f);
+        // Y: gentle altitude correction — the only "active" behaviour per spec §2.2
+        HoldAltitude(_cruiseAltitude, 1.5f);
 
         if (rb.linearVelocity.sqrMagnitude > 0.01f)
             transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
 
         currentAltitude = transform.position.y;
+        // Horizontal speed only — exclude HoldAltitude's vel.y to prevent feedback loop
+        Vector3 hv = rb.linearVelocity; hv.y = 0f;
+        currentSpeed = Mathf.Clamp(hv.magnitude, 0f, config.maxSpeed);
     }
 }
