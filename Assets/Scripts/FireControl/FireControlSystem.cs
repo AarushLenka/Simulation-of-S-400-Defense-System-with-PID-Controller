@@ -11,6 +11,9 @@ public class FireControlSystem : MonoBehaviour
     public float        engagementRange  = 5000f;   // REF §5.1: 200km IRL → /40 = 5000m
     public float        reloadTime       = 3f;
 
+    [Tooltip("Assign the MissileCameraDisplay component here")]
+    public MissileCameraDisplay missileCameraDisplay;
+
     // Derived at Start from the actual MissileController prefab — never set this manually
     [HideInInspector] public float missileMaxSpeed = 2000f;
 
@@ -95,6 +98,7 @@ public class FireControlSystem : MonoBehaviour
         if (mc != null)
         {
             mc.Initialize(target);
+            missileCameraDisplay?.RegisterMissile(mc);
             Debug.Log($"[FCS] Interceptor launched (vertical) from {launcher.name} → {target.name}");
         }
         else
@@ -107,7 +111,7 @@ public class FireControlSystem : MonoBehaviour
     {
         ActiveMissileCount = Mathf.Max(0, ActiveMissileCount - 1);
         Debug.Log($"[FCS] Interceptor terminated | hit={hit} | active remaining={ActiveMissileCount}");
-        var hud = FindFirstObjectByType<HUDController>();
+        var hud = FindAnyObjectByType<HUDController>();
         if (hud != null)
         {
             if (hit) hud.RegisterKill();

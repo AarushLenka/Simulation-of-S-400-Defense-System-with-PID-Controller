@@ -28,7 +28,7 @@ public class RadarHitHandler : MonoBehaviour
         Debug.LogError($"[RADAR] *** CRITICAL HIT *** — {attacker.name} struck the radar installation!");
 
         // Notify HUD if available
-        var hud = FindFirstObjectByType<HUDController>();
+        var hud = FindAnyObjectByType<HUDController>();
         if (hud != null) hud.RegisterMiss(); // counts as a failed interception
 
         Destroy(attacker);

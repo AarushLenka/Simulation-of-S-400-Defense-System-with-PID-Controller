@@ -8,7 +8,7 @@ public static class DebugMissileSpawner
     {
         // Remove old ones first
         var old = GameObject.FindObjectsByType<GameObject>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+            FindObjectsInactive.Include);
         foreach (var go in old)
             if (go != null && go.name.StartsWith("DEBUG_Missile_"))
                 Object.DestroyImmediate(go);

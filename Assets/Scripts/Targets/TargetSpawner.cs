@@ -23,6 +23,10 @@ public class TargetSpawner : MonoBehaviour
     public float autoSpawnInterval = 15f;
     private float _autoSpawnTimer;
 
+    [Header("Camera Display")]
+    [Tooltip("Assign the TargetCameraDisplay component here")]
+    public TargetCameraDisplay targetCameraDisplay;
+
     void Update()
     {
         HandleKeys();
@@ -84,7 +88,11 @@ public class TargetSpawner : MonoBehaviour
 
         // Pass radar reference so targets can orbit/return
         var target = go.GetComponent<AerialTarget>();
-        if (target != null) target.SetRadarTarget(centerPoint);
+        if (target != null)
+        {
+            target.SetRadarTarget(centerPoint);
+            targetCameraDisplay?.RegisterTarget(target);
+        }
 
         Debug.Log($"[SPAWNER] {go.name} at Y={spawnAltitude:F0}m, dist={spawnRadius/1000f:F1}km");
     }
@@ -105,7 +113,11 @@ public class TargetSpawner : MonoBehaviour
 
         var go = Instantiate(prefab, spawnPos, facing);
         var target = go.GetComponent<AerialTarget>();
-        if (target != null) target.SetRadarTarget(centerPoint);
+        if (target != null)
+        {
+            target.SetRadarTarget(centerPoint);
+            targetCameraDisplay?.RegisterTarget(target);
+        }
 
         Debug.Log($"[SPAWNER] DEBUG {go.name} at {spawnPos}");
     }

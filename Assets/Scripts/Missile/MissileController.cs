@@ -7,7 +7,8 @@ using UnityEngine;
 /// Guidance: rotates nose toward predicted intercept point each tick,
 ///           clamped by maxTurnRate. Velocity always follows the nose.
 ///           Switches to tighter PN in terminal phase for accuracy.
-/// This avoids the PID torque instability that caused spinning.
+/// Terrain/obstacle avoidance: multi-ray forward scan steers away from
+///           terrain and Radar objects before collision can occur.
 /// </summary>
 public class MissileController : MonoBehaviour
 {
@@ -28,7 +29,22 @@ public class MissileController : MonoBehaviour
     public float fuzeRadius = 8f;      // proximity detonation radius
 
     [Header("Self-destruct")]
-    public float lifetime = 30f;       // seconds before fuel exhaustion
+    public float lifetime = 60f;       // seconds before fuel exhaustion
+
+    [Header("Boost Phase")]
+    [Tooltip("Seconds to fly straight up before homing begins")]
+    public float boostDuration = 2f;
+
+    [Header("Terrain / Obstacle Avoidance")]
+    [Tooltip("How far ahead to cast avoidance rays (metres)")]
+    public float avoidanceLookAhead = 60f;
+    [Tooltip("Half-angle of the avoidance ray fan (degrees)")]
+    public float avoidanceFanAngle  = 30f;
+    [Tooltip("Strength of the avoidance steering (0 = off, 1 = full override)")]
+    [Range(0f, 1f)]
+    public float avoidanceWeight    = 0.85f;
+    [Tooltip("Layers that count as obstacles (terrain + anything tagged Radar)")]
+    public LayerMask avoidanceMask  = ~0;   // all layers by default; tune in Inspector
 
     // ── Private state ──────────────────────────────────────────────
     private Rigidbody    rb;
@@ -38,6 +54,18 @@ public class MissileController : MonoBehaviour
     private Vector3      _lastLOS;
     private bool         _losInit;
     private bool         _terminated;
+
+    // Avoidance ray directions relative to forward (built once in Awake)
+    private static readonly Vector3[] _avoidRayDirs = new Vector3[]
+    {
+        Vector3.forward,
+        new Vector3( 0.5f,  0f, 1f),   // right 27°
+        new Vector3(-0.5f,  0f, 1f),   // left  27°
+        new Vector3( 0f,  0.5f, 1f),   // up    27°
+        new Vector3( 0f, -0.5f, 1f),   // down  27°
+        new Vector3( 0.7f, 0.7f, 1f),  // up-right
+        new Vector3(-0.7f, 0.7f, 1f),  // up-left
+    };
 
     void Awake()
     {
@@ -89,10 +117,30 @@ public class MissileController : MonoBehaviour
         // ── Accelerate ────────────────────────────────────────────────
         _speed = Mathf.MoveTowards(_speed, maxSpeed, acceleration * Time.fixedDeltaTime);
 
+        // ── Boost phase: fly straight up, no guidance ─────────────────
+        if (_elapsed < boostDuration)
+        {
+            transform.rotation = Quaternion.RotateTowards(
+                transform.rotation, Quaternion.LookRotation(Vector3.up),
+                maxTurnRate * Time.fixedDeltaTime);
+            rb.linearVelocity = transform.forward * _speed;
+            return;
+        }
+
         // ── Guidance: compute desired aim direction ───────────────────
+        // In terminal phase only use PN; avoidance would deflect the kill shot.
         Vector3 aimDir = dist < terminalRange
             ? ComputePN()
             : ComputePursuit();
+
+        // ── Terrain / obstacle avoidance (mid-course only) ───────────
+        // Skip avoidance in terminal phase — the target matters more than obstacles.
+        if (dist >= terminalRange)
+        {
+            Vector3 avoidDir = ComputeAvoidance();
+            if (avoidDir != Vector3.zero)
+                aimDir = Vector3.Slerp(aimDir, avoidDir, avoidanceWeight).normalized;
+        }
 
         // ── Steer: rotate nose toward aim, clamped by maxTurnRate ─────
         if (aimDir != Vector3.zero)
@@ -104,6 +152,62 @@ public class MissileController : MonoBehaviour
 
         // ── Velocity always follows nose — no separate physics forces ─
         rb.linearVelocity = transform.forward * _speed;
+    }
+
+    /// <summary>
+    /// Casts a fan of rays in the missile's forward hemisphere.
+    /// If any ray hits terrain or a Radar object, returns a steering direction
+    /// that blends away from all hit normals with an upward bias.
+    /// Returns Vector3.zero when no obstacles are detected.
+    /// </summary>
+    Vector3 ComputeAvoidance()
+    {
+        // Dynamic look-ahead: at minimum 1.5× the distance needed to stop turning
+        float dynamicAhead = Mathf.Max(avoidanceLookAhead, _speed * 1.5f);
+
+        Vector3 avoidAccum  = Vector3.zero;
+        int     hitCount    = 0;
+
+        foreach (Vector3 localDir in _avoidRayDirs)
+        {
+            // Transform ray direction from missile-local to world space
+            Vector3 worldDir = transform.TransformDirection(localDir.normalized);
+
+            if (Physics.Raycast(transform.position, worldDir, out RaycastHit hit,
+                                dynamicAhead, avoidanceMask, QueryTriggerInteraction.Ignore))
+            {
+                // Only react to terrain and objects tagged "Radar"
+                bool isTerrain = hit.collider is TerrainCollider ||
+                                hit.collider.gameObject.layer ==
+                                LayerMask.NameToLayer("Terrain");
+                bool isRadar   = hit.collider.CompareTag("Radar");
+
+                if (!isTerrain && !isRadar) continue;
+
+                // Urgency: closer obstacle → stronger push
+                float urgency = 1f - Mathf.Clamp01(hit.distance / dynamicAhead);
+
+                // Reflection off hit normal + upward bias to climb over obstacles
+                Vector3 reflected  = Vector3.Reflect(worldDir, hit.normal);
+                Vector3 avoidLocal = (reflected + Vector3.up * 0.5f).normalized;
+                avoidAccum += avoidLocal * urgency;
+                hitCount++;
+
+                Debug.DrawRay(transform.position, worldDir * hit.distance, Color.red,
+                            Time.fixedDeltaTime);
+            }
+            else
+            {
+                Debug.DrawRay(transform.position, worldDir * dynamicAhead, Color.green,
+                              Time.fixedDeltaTime);
+            }
+        }
+
+        if (hitCount == 0) return Vector3.zero;
+
+        // Blend the avoidance direction with current forward so the missile
+        // doesn't spin 180°; normalise after accumulation.
+        return (avoidAccum / hitCount + transform.forward * 0.3f).normalized;
     }
 
     /// <summary>
@@ -152,6 +256,10 @@ public class MissileController : MonoBehaviour
         bool hit = target != null;
         if (target != null) Destroy(target.gameObject);
 
+        // Remove this missile's camera slot immediately
+        var mcd = FindAnyObjectByType<MissileCameraDisplay>();
+        mcd?.UnregisterMissile(this);
+
         NotifyFCS(hit);
         Destroy(gameObject);
     }
@@ -160,13 +268,16 @@ public class MissileController : MonoBehaviour
     {
         if (_terminated) return;
         _terminated = true;
+        // Remove this missile's camera slot immediately
+        var mcd = FindAnyObjectByType<MissileCameraDisplay>();
+        mcd?.UnregisterMissile(this);
         NotifyFCS(hit);
         Destroy(gameObject);
     }
 
     void NotifyFCS(bool hit)
     {
-        var fcs = FindFirstObjectByType<FireControlSystem>();
+        var fcs = FindAnyObjectByType<FireControlSystem>();
         if (fcs != null) fcs.OnMissileTerminated(hit);
     }
 
