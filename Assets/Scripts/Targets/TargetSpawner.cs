@@ -12,11 +12,9 @@ public class TargetSpawner : MonoBehaviour
     public GameObject birdPrefab;
 
     [Header("Spawn Geometry")]
-    public Transform centerPoint;           // Radar / S-400 GameObject
+    public Transform centerPoint;
     [Tooltip("Targets spawn on the edge of this radius (metres)")]
-    public float spawnRadius = 12000f;      // 12 km — within S-400 engagement envelope
-    [Tooltip("Debug key T spawns this close")]
-    public float debugSpawnRadius = 600f;
+    public float spawnRadius = 12000f;
 
     [Header("Auto-Spawn")]
     public bool  autoSpawnEnabled  = false;
@@ -53,7 +51,6 @@ public class TargetSpawner : MonoBehaviour
         if (kb.rKey.wasPressedThisFrame) Spawn(bomberPrefab);
         if (kb.dKey.wasPressedThisFrame) for (int i = 0; i < 5; i++) Spawn(uavPrefab);
         if (kb.kKey.wasPressedThisFrame) for (int i = 0; i < 8; i++) Spawn(birdPrefab);
-        if (kb.tKey.wasPressedThisFrame) SpawnDebugClose(stealthFighterPrefab);
     }
 
     void SpawnRandom()
@@ -69,24 +66,20 @@ public class TargetSpawner : MonoBehaviour
     {
         if (prefab == null) { Debug.LogWarning("[SPAWNER] Prefab slot empty"); return; }
 
-        // Random point on the spawn circle
-        float angle  = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+        float angle   = Random.Range(0f, 360f) * Mathf.Deg2Rad;
         Vector3 xzPos = centerPoint.position
                       + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * spawnRadius;
 
-        // Use the prefab's TargetConfig for correct altitude band
         float spawnAltitude = GetSpawnAltitude(prefab, xzPos);
         Vector3 spawnPos    = new Vector3(xzPos.x, spawnAltitude, xzPos.z);
 
-        // Face the radar
-        Vector3 toRadar     = (centerPoint.position - spawnPos).normalized;
-        Quaternion facing   = toRadar != Vector3.zero
-                            ? Quaternion.LookRotation(toRadar)
-                            : Quaternion.identity;
+        Vector3 toRadar   = (centerPoint.position - spawnPos).normalized;
+        Quaternion facing = toRadar != Vector3.zero
+                          ? Quaternion.LookRotation(toRadar)
+                          : Quaternion.identity;
 
         var go = Instantiate(prefab, spawnPos, facing);
 
-        // Pass radar reference so targets can orbit/return
         var target = go.GetComponent<AerialTarget>();
         if (target != null)
         {
@@ -97,37 +90,8 @@ public class TargetSpawner : MonoBehaviour
         Debug.Log($"[SPAWNER] {go.name} at Y={spawnAltitude:F0}m, dist={spawnRadius/1000f:F1}km");
     }
 
-    void SpawnDebugClose(GameObject prefab)
-    {
-        if (prefab == null) return;
-
-        float angle   = Random.Range(0f, 360f) * Mathf.Deg2Rad;
-        Vector3 xzPos = centerPoint.position
-                      + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * debugSpawnRadius;
-
-        float spawnAltitude = GetSpawnAltitude(prefab, xzPos);
-        Vector3 spawnPos    = new Vector3(xzPos.x, spawnAltitude, xzPos.z);
-
-        Vector3 toRadar   = (centerPoint.position - spawnPos).normalized;
-        Quaternion facing = Quaternion.LookRotation(toRadar);
-
-        var go = Instantiate(prefab, spawnPos, facing);
-        var target = go.GetComponent<AerialTarget>();
-        if (target != null)
-        {
-            target.SetRadarTarget(centerPoint);
-            targetCameraDisplay?.RegisterTarget(target);
-        }
-
-        Debug.Log($"[SPAWNER] DEBUG {go.name} at {spawnPos}");
-    }
-
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Reads the prefab's TargetConfig altitude range and returns a world Y spawn position.
-    /// Config altitudes are treated as height ABOVE TERRAIN, not absolute world Y.
-    /// </summary>
     float GetSpawnAltitude(GameObject prefab, Vector3 xzPos)
     {
         float groundY = SampleTerrainHeight(xzPos);
@@ -135,15 +99,13 @@ public class TargetSpawner : MonoBehaviour
         var cfg = prefab.GetComponent<AerialTarget>()?.config;
         if (cfg != null)
         {
-            // Config altitudes = above-terrain height, so add ground elevation
             float agl = Random.Range(cfg.minAltitude, cfg.maxAltitude);
-            return groundY + Mathf.Max(agl, 20f); // always at least 20m above ground
+            return groundY + Mathf.Max(agl, 20f);
         }
 
         return groundY + 200f;
     }
 
-    /// <summary>Terrain world-Y at a given XZ position.</summary>
     float SampleTerrainHeight(Vector3 worldPos)
     {
         if (Physics.Raycast(new Vector3(worldPos.x, 5000f, worldPos.z),
