@@ -1,71 +1,84 @@
 using UnityEngine;
 
 /// <summary>
-/// REF §2.6 — Boids flocking: Separation (1.5x) + Cohesion (0.5x).
-/// Stays below 400m altitude (1:40: IRL low-level ~10–100m → 0.25–2.5m,
-/// use 15m for visibility at scale).
-/// Single bird with no flock mates flies straight indefinitely (expected per spec).
-/// Must spawn 5–8 birds clustered within 50m for flocking to emerge.
+/// Flock bird — flies in a V formation.
+/// Each bird is assigned a slot offset (local space) relative to the flock leader.
+/// It steers toward its world-space slot position each tick, holding the V shape.
+/// Flies horizontally at fixed terrain-relative altitude. Despawns after lifetime.
 /// </summary>
 public class Bird : AerialTarget
 {
-    [Tooltip("Minimum separation distance before steering away (metres)")]
-    public float separationDist = 8f;
+    [Tooltip("Seconds before the flock despawns")]
+    public float lifetime      = 30f;
 
-    [Tooltip("Flock altitude above terrain — keep below 400m world, ~10m at 1:40 scale")]
-    public float flockAltitude = 10f;
+    [Tooltip("Height above terrain to maintain")]
+    public float flockAltitude = 15f;
 
-    private Bird[] _flock;
+    [Tooltip("How tightly each bird tracks its slot (higher = snappier formation)")]
+    public float slotTracking  = 3f;
+
+    // Set by TargetSpawner after Instantiate
+    private Transform _leader;          // the lead bird (index 0)
+    private Vector3   _slotOffset;      // local-space offset from leader
+    private Vector3   _flockDir;        // shared heading
+    private float     _elapsed;
+
+    /// <summary>Called by TargetSpawner to assign this bird its V-slot.</summary>
+    public void SetFormation(Transform leader, Vector3 localSlotOffset, Vector3 flockDir)
+    {
+        _leader     = leader;
+        _slotOffset = localSlotOffset;
+        _flockDir   = flockDir.normalized;
+        _flockDir.y = 0f;
+    }
 
     protected override void InitializeTarget()
     {
-        // Collect all birds in scene — includes self, filtered in UpdateMotion
-        _flock       = FindObjectsByType<Bird>(FindObjectsInactive.Exclude);
-        currentSpeed = Random.Range(config.minSpeed, config.maxSpeed);
-        rb.linearVelocity = transform.forward * currentSpeed;
+        currentSpeed      = Random.Range(config.minSpeed, config.maxSpeed);
+        rb.linearVelocity = _flockDir * currentSpeed;
     }
 
     public override void UpdateMotion()
     {
-        Vector3 separation = Vector3.zero;
-        Vector3 cohesion   = Vector3.zero;
-        int     count      = 0;
-
-        foreach (Bird b in _flock)
+        _elapsed += Time.fixedDeltaTime;
+        if (_elapsed >= lifetime)
         {
-            if (b == null || b == this) continue;
-            float dist = Vector3.Distance(transform.position, b.transform.position);
-
-            // Separation: steer away from nearby birds
-            if (dist < separationDist && dist > 0.001f)
-                separation -= (b.transform.position - transform.position);
-
-            // Cohesion: accumulate positions to find average
-            cohesion += b.transform.position;
-            count++;
+            Destroy(gameObject);
+            return;
         }
 
-        // Finalise cohesion: vector toward average flock position
-        if (count > 0)
-            cohesion = (cohesion / count) - transform.position;
-
-        // Blend per spec — separation 1.5x, cohesion 0.5x (§2.6)
-        Vector3 steer = separation * 1.5f + cohesion * 0.5f;
-
-        // Single bird or zero steer: fly straight (expected per spec §2.6)
-        if (steer.sqrMagnitude > 0.001f)
-            steer = steer.normalized;
+        // ── Compute world-space slot position ────────────────────────
+        // If this is the leader (_slotOffset == zero), just fly forward.
+        Vector3 targetPos;
+        if (_leader == null || _leader.gameObject == gameObject)
+        {
+            // Leader: fly straight in flock direction
+            targetPos = transform.position + _flockDir * 10f;
+        }
         else
-            steer = rb.linearVelocity.sqrMagnitude > 0.001f
-                  ? rb.linearVelocity.normalized
-                  : transform.forward;
+        {
+            // Follower: slot is leader's position + offset rotated by leader's heading
+            Quaternion leaderRot = Quaternion.LookRotation(_flockDir, Vector3.up);
+            targetPos = _leader.position + leaderRot * _slotOffset;
+        }
 
-        steer.y = 0f; // altitude handled by HoldAltitude
+        // ── Steer toward slot, horizontal only ───────────────────────
+        Vector3 toSlot = targetPos - transform.position;
+        toSlot.y = 0f;
 
-        rb.linearVelocity = Vector3.Lerp(rb.linearVelocity,
-            steer * currentSpeed, Time.fixedDeltaTime * 2f);
+        Vector3 desired = toSlot.sqrMagnitude > 0.01f ? toSlot.normalized : _flockDir;
 
-        // Hold flock altitude above terrain (must stay below 400m per spec §2.6 & §3.3 rule 1)
+        Vector3 currentHorizontal = new Vector3(
+            rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+
+        Vector3 newHorizontal = Vector3.Lerp(
+            currentHorizontal,
+            desired * currentSpeed,
+            slotTracking * Time.fixedDeltaTime);
+
+        rb.linearVelocity = new Vector3(newHorizontal.x, rb.linearVelocity.y, newHorizontal.z);
+
+        // ── Hold altitude ─────────────────────────────────────────────
         float groundY = GetTerrainYBelow();
         HoldAltitude(groundY + flockAltitude);
 
@@ -73,6 +86,6 @@ public class Bird : AerialTarget
             transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
 
         currentAltitude = transform.position.y;
-        currentSpeed    = rb.linearVelocity.magnitude;
+        currentSpeed    = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z).magnitude;
     }
 }

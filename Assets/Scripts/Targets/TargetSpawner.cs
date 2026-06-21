@@ -21,7 +21,11 @@ public class TargetSpawner : MonoBehaviour
     public float autoSpawnInterval = 15f;
     private float _autoSpawnTimer;
 
-    [Header("Camera Display")]
+    [Header("Bird Flock")]
+    [Tooltip("Number of birds per flock")]
+    public int   flockSize       = 8;
+    [Tooltip("Radius within which flock members are scattered (metres)")]
+    public float flockSpreadRadius = 8f;
     [Tooltip("Assign the TargetCameraDisplay component here")]
     public TargetCameraDisplay targetCameraDisplay;
 
@@ -50,7 +54,7 @@ public class TargetSpawner : MonoBehaviour
         if (kb.fKey.wasPressedThisFrame) Spawn(stealthFighterPrefab);
         if (kb.rKey.wasPressedThisFrame) Spawn(bomberPrefab);
         if (kb.dKey.wasPressedThisFrame) for (int i = 0; i < 5; i++) Spawn(uavPrefab);
-        if (kb.kKey.wasPressedThisFrame) for (int i = 0; i < 8; i++) Spawn(birdPrefab);
+        if (kb.kKey.wasPressedThisFrame) SpawnFlock();
     }
 
     void SpawnRandom()
@@ -88,6 +92,80 @@ public class TargetSpawner : MonoBehaviour
         }
 
         Debug.Log($"[SPAWNER] {go.name} at Y={spawnAltitude:F0}m, dist={spawnRadius/1000f:F1}km");
+    }
+
+    // ── Flock spawn ───────────────────────────────────────────────────────────
+
+    void SpawnFlock()
+    {
+        if (birdPrefab == null) { Debug.LogWarning("[SPAWNER] Bird prefab not assigned"); return; }
+
+        // Pick one point on the spawn circle
+        float   angle    = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+        Vector3 xzCenter = centerPoint.position
+                         + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * spawnRadius;
+
+        float groundY      = SampleTerrainHeight(xzCenter);
+        float spawnAltitude = groundY + 15f;
+
+        // Shared heading toward radar
+        Vector3    flockDir = (centerPoint.position - xzCenter).normalized;
+        flockDir.y          = 0f;
+        Quaternion facing   = Quaternion.LookRotation(flockDir);
+
+        // V-formation slot offsets in leader-local space (forward = flockDir).
+        // Pattern: leader at tip, pairs spread back and out on each wing.
+        // spacing: lateral (right/left), depth (behind leader)
+        float lat   = flockSpreadRadius * 0.5f;   // lateral gap between slots
+        float depth = flockSpreadRadius * 0.55f;  // how far back each row sits
+
+        // Slots: index 0 = leader, then alternating left/right pairs moving back
+        Vector3[] slots = new Vector3[]
+        {
+            new Vector3(  0f,   0f,   0f),          // 0 — leader (tip)
+            new Vector3(-lat,   0f, -depth),         // 1 — left  wing 1
+            new Vector3( lat,   0f, -depth),         // 2 — right wing 1
+            new Vector3(-lat*2, 0f, -depth*2),       // 3 — left  wing 2
+            new Vector3( lat*2, 0f, -depth*2),       // 4 — right wing 2
+            new Vector3(-lat*3, 0f, -depth*3),       // 5 — left  wing 3
+            new Vector3( lat*3, 0f, -depth*3),       // 6 — right wing 3
+            new Vector3(-lat*4, 0f, -depth*4),       // 7 — left  wing 4
+        };
+
+        int count = Mathf.Min(flockSize, slots.Length);
+
+        // Spawn all birds at the leader position first (already clustered)
+        var birds = new Bird[count];
+        for (int i = 0; i < count; i++)
+        {
+            // Offset spawn position so they start roughly in their slot
+            Vector3 slotWorld = xzCenter + facing * slots[i];
+            slotWorld.y = spawnAltitude;
+
+            var go     = Instantiate(birdPrefab, slotWorld, facing);
+            var bird   = go.GetComponent<Bird>();
+            var target = go.GetComponent<AerialTarget>();
+
+            if (target != null)
+            {
+                target.SetRadarTarget(centerPoint);
+                targetCameraDisplay?.RegisterTarget(target);
+            }
+
+            birds[i] = bird;
+        }
+
+        // Wire up formation — leader is birds[0]
+        for (int i = 0; i < count; i++)
+        {
+            if (birds[i] == null) continue;
+            birds[i].SetFormation(
+                birds[0].transform,
+                slots[i],
+                flockDir);
+        }
+
+        Debug.Log($"[SPAWNER] V-flock of {count} birds spawned at dist={spawnRadius/1000f:F1}km");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

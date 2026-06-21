@@ -20,9 +20,10 @@ public static class ThreatClassifier
         float alt = c.position.y;
 
         // ── Rule 1: Bird ───────────────────────────────────────────────
-        // rcs=0.0005 — 20× below any real threat. Speed ceiling 12 absorbs
-        // flock physics spikes; no real threat is this slow at this RCS.
-        if (c.rcs < 0.005f && spd < 12f)
+        // rcs=0.0005. Threshold set midway between bird (0.0005) and stealth (0.001).
+        // No speed condition — physics spawn spikes can momentarily push bird velocity
+        // into threat ranges, so RCS alone is the reliable discriminator.
+        if (c.rcs < 0.0008f)
             return ThreatLevel.None;
 
         // ── Rule 2: Ballistic missile ─────────────────────────────────

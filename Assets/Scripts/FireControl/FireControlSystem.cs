@@ -150,22 +150,27 @@ public class FireControlSystem : MonoBehaviour
         activeMissilesPerTarget[target]++;
     }
 
-    // Route by threat level + speed. Speed thresholds match actual config values:
     //   Cruise missile: 17-20 m/s  → 9M96E
     //   Drone:          7-10 m/s   → 9M96E
-    //   Stealth:        26-30 m/s  → 48N6DM
+    //   Stealth:        26-30 m/s, rcs=0.001 → 48N6DM  (identified by RCS, not speed)
     //   Bomber:         30-33 m/s  → 48N6DM
     //   Ballistic:      45-52 m/s  → 48N6DM
-    // Cutoff at 22 m/s sits cleanly between cruise max (20) and stealth min (26).
+    // Stealth is identified by rcs <= 0.002 to avoid relying on speed during evasive manoeuvres.
+    // Cruise cutoff at 22 m/s sits between cruise max (20) and stealth min (26).
     GameObject SelectPrefabForContact(RadarContact contact)
     {
         float spd = contact.velocity.magnitude;
+
+        // Stealth fighter: tiny RCS — route to 48N6DM regardless of speed
+        if (contact.rcs <= 0.002f && contact.threatLevel == ThreatLevel.Critical)
+            return missilePrefab48N6DM;
+
         return contact.threatLevel switch {
             ThreatLevel.Medium                   => missilePrefab9M96E,   // drone
             ThreatLevel.Low                      => missilePrefab9M96E,
             ThreatLevel.High                     => missilePrefab48N6DM,  // bomber
             ThreatLevel.Critical when spd <= 22f => missilePrefab9M96E,   // cruise missile
-            ThreatLevel.Critical                 => missilePrefab48N6DM,  // ballistic / stealth
+            ThreatLevel.Critical                 => missilePrefab48N6DM,  // ballistic
             _                                    => missilePrefab48N6DM
         };
     }

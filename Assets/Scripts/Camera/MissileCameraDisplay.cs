@@ -93,21 +93,48 @@ public class MissileCameraDisplay : MonoBehaviour
     // ── Viewport layout ──────────────────────────────────────────────────────
 
     /// <summary>
-    /// Splits the display into N equal horizontal bands (top-to-bottom).
-    /// Unity viewport rect: (0,0) = bottom-left, (1,1) = top-right.
+    /// Computes a cols×rows grid that keeps each cell as close to 16:9 as possible,
+    /// then assigns each camera a rect in that grid (left→right, top→bottom).
+    /// Unity viewport: (0,0) = bottom-left, (1,1) = top-right.
     /// </summary>
     void RebuildViewports()
     {
         int n = _slots.Count;
         if (n == 0) return;
 
-        float h = 1f / n;
+        // Find the col/row split that minimises deviation from 16:9 per cell.
+        // For each candidate column count, rows = ceil(n / cols).
+        int bestCols = 1, bestRows = n;
+        float bestAspectError = float.MaxValue;
+        const float targetAspect = 16f / 9f;
+
+        for (int cols = 1; cols <= n; cols++)
+        {
+            int   rows        = Mathf.CeilToInt((float)n / cols);
+            // Cell aspect ratio assuming the full display is 16:9
+            float cellAspect  = (targetAspect * cols) / rows;
+            float error       = Mathf.Abs(cellAspect - targetAspect);
+            if (error < bestAspectError)
+            {
+                bestAspectError = error;
+                bestCols        = cols;
+                bestRows        = rows;
+            }
+        }
+
+        float cellW = 1f / bestCols;
+        float cellH = 1f / bestRows;
 
         for (int i = 0; i < n; i++)
         {
-            // i=0 → top strip.  Unity Y is bottom-up, so top strip starts at (1 - h*(i+1))
-            float yBottom = 1f - h * (i + 1);
-            _slots[i].cam.rect = new Rect(0f, yBottom, 1f, h);
+            int col = i % bestCols;
+            int row = i / bestCols;          // 0 = top row
+
+            float x       = col * cellW;
+            // Unity Y=0 is bottom — convert row 0 (top) to the correct Y
+            float yBottom = 1f - (row + 1) * cellH;
+
+            _slots[i].cam.rect = new Rect(x, yBottom, cellW, cellH);
         }
     }
 }

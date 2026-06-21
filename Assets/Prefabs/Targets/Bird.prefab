@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 2199307444256032231}
   - component: {fileID: 313422243999497597}
   - component: {fileID: 9002424046428620158}
+  - component: {fileID: 8978325986076432581}
   m_Layer: 6
   m_Name: Bird
   m_TagString: Untagged
@@ -104,9 +105,26 @@ MonoBehaviour:
   isTracked: 0
   engagementRadius: 14000
   minTerrainClearance: 15
-  leader: {fileID: 0}
-  formationOffset: {x: 0, y: 0, z: 0}
-  followStrength: 3
+  lifetime: 30
+  flockAltitude: 15
+  slotTracking: 3
+--- !u!111 &8978325986076432581
+Animation:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3697855691399201161}
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Animation: {fileID: 1827226128182048838, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
+  m_Animations:
+  - {fileID: 1827226128182048838, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
+  m_WrapMode: 0
+  m_PlayAutomatically: 1
+  m_AnimatePhysics: 1
+  m_UpdateMode: 0
+  m_CullingType: 0
 --- !u!1001 &5342232595504974529
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -394,10 +412,34 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: -4992726106960807078, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7165127765417996022}
   m_SourcePrefab: {fileID: 100100000, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
 --- !u!4 &5596238485996121386 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
   m_PrefabInstance: {fileID: 5342232595504974529}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &8112436703104233883 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -4992726106960807078, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
+  m_PrefabInstance: {fileID: 5342232595504974529}
+  m_PrefabAsset: {fileID: 0}
+--- !u!111 &7165127765417996022
+Animation:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8112436703104233883}
+  m_Enabled: 1
+  serializedVersion: 4
+  m_Animation: {fileID: 1827226128182048838, guid: 757d3599f073c0c4fac2ad1f6234588f, type: 3}
+  m_Animations: []
+  m_WrapMode: 0
+  m_PlayAutomatically: 1
+  m_AnimatePhysics: 0
+  m_UpdateMode: 0
+  m_CullingType: 0
