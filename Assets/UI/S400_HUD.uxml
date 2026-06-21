@@ -78,7 +78,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement class="stat-row">
                     <ui:Label text="[ESC] PAUSE" class="stat-label" />
-                    <ui:Label text="[T] DEBUG" class="stat-label" />
+                    <ui:Label text="[T] CYCLE TARGET CAM" class="stat-label" />
                 </ui:VisualElement>
             </ui:VisualElement>
 

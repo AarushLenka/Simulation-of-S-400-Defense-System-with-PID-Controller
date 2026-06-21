@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: StealthFighterConfig
   m_EditorClassIdentifier: Assembly-CSharp::TargetConfig
   targetTypeName: StealthFighter
-  minSpeed: 15
-  maxSpeed: 17
+  minSpeed: 26
+  maxSpeed: 30
   minAltitude: 1000
   maxAltitude: 1500
   rcs: 0.001

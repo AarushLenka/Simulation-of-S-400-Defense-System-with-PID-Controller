@@ -35,6 +35,10 @@ public class MissileController : MonoBehaviour
     [Tooltip("Seconds to fly straight up before homing begins")]
     public float boostDuration = 2f;
 
+    [Header("Guidance Tuning")]
+    [Tooltip("Max seconds of target travel to lead by in pursuit phase. Lower = less overshoot on circling targets. Higher = better intercept geometry on fast straight fliers.")]
+    public float pursuitLeadTime = 4f;
+
     [Header("Terrain / Obstacle Avoidance")]
     [Tooltip("How far ahead to cast avoidance rays (metres)")]
     public float avoidanceLookAhead = 60f;
@@ -43,17 +47,26 @@ public class MissileController : MonoBehaviour
     [Tooltip("Strength of the avoidance steering (0 = off, 1 = full override)")]
     [Range(0f, 1f)]
     public float avoidanceWeight    = 0.85f;
+    [Tooltip("How quickly avoidance direction changes (higher = more responsive but more jitter). 3–6 is stable.")]
+    public float avoidanceSmoothing = 4f;
     [Tooltip("Layers that count as obstacles (terrain + anything tagged Radar)")]
     public LayerMask avoidanceMask  = ~0;   // all layers by default; tune in Inspector
 
     // ── Private state ──────────────────────────────────────────────
     private Rigidbody    rb;
     private AerialTarget target;
+    [SerializeField, HideInInspector] // shown via custom label below
     private float        _speed;
     private float        _elapsed;
     private Vector3      _lastLOS;
     private bool         _losInit;
     private bool         _terminated;
+    private Vector3      _smoothedAvoidDir = Vector3.zero;
+
+    /// <summary>Current speed in m/s — visible in Inspector during Play mode.</summary>
+    [Header("Runtime")]
+    [SerializeField, Tooltip("Current speed (m/s) — read-only, updates every physics tick")]
+    private float currentSpeed;
 
     // Avoidance ray directions relative to forward (built once in Awake)
     private static readonly Vector3[] _avoidRayDirs = new Vector3[]
@@ -81,6 +94,7 @@ public class MissileController : MonoBehaviour
     {
         target = t;
         _speed = launchSpeed;
+        currentSpeed = _speed;
         rb.linearVelocity = Vector3.up * _speed;
         Debug.Log($"[MISSILE] Launched → tracking {t.name}");
     }
@@ -116,6 +130,7 @@ public class MissileController : MonoBehaviour
 
         // ── Accelerate ────────────────────────────────────────────────
         _speed = Mathf.MoveTowards(_speed, maxSpeed, acceleration * Time.fixedDeltaTime);
+        currentSpeed = _speed;
 
         // ── Boost phase: fly straight up, no guidance ─────────────────
         if (_elapsed < boostDuration)
@@ -137,9 +152,19 @@ public class MissileController : MonoBehaviour
         // Skip avoidance in terminal phase — the target matters more than obstacles.
         if (dist >= terminalRange)
         {
-            Vector3 avoidDir = ComputeAvoidance();
-            if (avoidDir != Vector3.zero)
-                aimDir = Vector3.Slerp(aimDir, avoidDir, avoidanceWeight).normalized;
+            Vector3 rawAvoid = ComputeAvoidance();
+            // Low-pass filter: blend toward the new avoidance direction gradually.
+            // Prevents per-frame jitter from rays alternately hitting/missing terrain.
+            // When clear of obstacles, decay back to zero so guidance resumes normally.
+            if (rawAvoid != Vector3.zero)
+                _smoothedAvoidDir = Vector3.Slerp(_smoothedAvoidDir, rawAvoid,
+                                                  avoidanceSmoothing * Time.fixedDeltaTime);
+            else
+                _smoothedAvoidDir = Vector3.Slerp(_smoothedAvoidDir, Vector3.zero,
+                                                  avoidanceSmoothing * 2f * Time.fixedDeltaTime);
+
+            if (_smoothedAvoidDir.sqrMagnitude > 0.01f)
+                aimDir = Vector3.Slerp(aimDir, _smoothedAvoidDir, avoidanceWeight).normalized;
         }
 
         // ── Steer: rotate nose toward aim, clamped by maxTurnRate ─────
@@ -216,10 +241,15 @@ public class MissileController : MonoBehaviour
     /// </summary>
     Vector3 ComputePursuit()
     {
-        float tof = Vector3.Distance(transform.position, target.transform.position)
-                    / Mathf.Max(_speed, 1f);
-        // Lead by half TOF — avoids overshooting on slow targets
-        Vector3 aimPoint = target.transform.position + target.Rb.linearVelocity * tof * 0.5f;
+        float dist = Vector3.Distance(transform.position, target.transform.position);
+        float tof  = dist / Mathf.Max(_speed, 1f);
+
+        // Clamp lead time to pursuitLeadTime (Inspector-tunable per prefab).
+        // 9M96E: low value (e.g. 3s) avoids chasing phantom points on circling drones.
+        // 48N6DM: high value (e.g. 8s) aims well ahead of fast straight-flying bombers.
+        tof = Mathf.Min(tof, pursuitLeadTime);
+
+        Vector3 aimPoint = target.transform.position + target.Rb.linearVelocity * tof;
         return (aimPoint - transform.position).normalized;
     }
 
@@ -254,6 +284,14 @@ public class MissileController : MonoBehaviour
             Instantiate(explosion, transform.position, Quaternion.identity);
 
         bool hit = target != null;
+
+        // Notify radar to mark the track as neutralized before destroying the target
+        if (target != null)
+        {
+            var ant = FindAnyObjectByType<RadarAntenna>();
+            ant?.NotifyTargetNeutralized(target);
+        }
+
         if (target != null) Destroy(target.gameObject);
 
         // Remove this missile's camera slot immediately
@@ -278,16 +316,15 @@ public class MissileController : MonoBehaviour
     void NotifyFCS(bool hit)
     {
         var fcs = FindAnyObjectByType<FireControlSystem>();
-        if (fcs != null) fcs.OnMissileTerminated(hit);
+        if (fcs != null) fcs.OnMissileTerminated(hit, target);
     }
 
     void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.GetComponent<TerrainCollider>() != null)
-        {
-            Debug.Log("[MISSILE] Terrain impact");
-            Detonate();
-        }
+        // Detonate on contact with anything — terrain, target, or world geometry.
+        // The proximity fuze in FixedUpdate handles soft kills; this is the hard contact kill.
+        Debug.Log($"[MISSILE] Contact with {collision.gameObject.name} — detonating");
+        Detonate();
     }
 
     void OnDestroy()

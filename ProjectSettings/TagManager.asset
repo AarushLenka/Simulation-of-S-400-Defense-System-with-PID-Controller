@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 3
   tags:
   - Fighter
+  - Radar
   layers:
   - Default
   - TransparentFX

@@ -7,21 +7,23 @@ public static class DebugMissileSpawner
     public static void Spawn()
     {
         // Remove old ones first
-        var old = GameObject.FindObjectsByType<GameObject>(
-            FindObjectsInactive.Include);
+        var old = GameObject.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
         foreach (var go in old)
             if (go != null && go.name.StartsWith("DEBUG_Missile_"))
                 Object.DestroyImmediate(go);
 
-        var fcs = Object.FindFirstObjectByType<FireControlSystem>();
+        var fcs = Object.FindAnyObjectByType<FireControlSystem>();
         if (fcs == null) { Debug.LogError("[DEBUG] FireControlSystem not found"); return; }
-        if (fcs.missilePrefab == null) { Debug.LogError("[DEBUG] missilePrefab not assigned"); return; }
+
+        // Use whichever prefab is assigned — prefer 48N6DM, fall back to 9M96E
+        var prefab = fcs.missilePrefab48N6DM ?? fcs.missilePrefab9M96E;
+        if (prefab == null) { Debug.LogError("[DEBUG] No missile prefab assigned on FireControlSystem"); return; }
 
         int n = 0;
         foreach (var launcher in fcs.launcherPositions)
         {
             if (launcher == null) continue;
-            var go = (GameObject)PrefabUtility.InstantiatePrefab(fcs.missilePrefab);
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
             go.transform.position = launcher.position;
             go.transform.rotation = Quaternion.LookRotation(Vector3.up);
             go.name = $"DEBUG_Missile_{launcher.name}";
@@ -30,14 +32,13 @@ public static class DebugMissileSpawner
             if (rb != null) { rb.isKinematic = true; rb.useGravity = false; }
             n++;
         }
-        Debug.Log($"[DEBUG] Spawned {n} static missiles at launcher positions.");
+        Debug.Log($"[DEBUG] Spawned {n} static missiles ({prefab.name}) at launcher positions.");
     }
 
     [MenuItem("Tools/Debug/Remove Debug Missiles")]
     public static void Remove()
     {
-        var all = GameObject.FindObjectsByType<GameObject>(
-            FindObjectsInactive.Include, FindObjectsSortMode.None);
+        var all = GameObject.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
         int n = 0;
         foreach (var go in all)
             if (go != null && go.name.StartsWith("DEBUG_Missile_"))

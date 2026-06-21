@@ -13,9 +13,9 @@ MonoBehaviour:
   m_Name: UAVDroneConfig
   m_EditorClassIdentifier: Assembly-CSharp::TargetConfig
   targetTypeName: UAVDrone
-  minSpeed: 2
-  maxSpeed: 5
-  minAltitude: 250
+  minSpeed: 7
+  maxSpeed: 10
+  minAltitude: 350
   maxAltitude: 400
   rcs: 0.01
   maxManeuverG: 2
