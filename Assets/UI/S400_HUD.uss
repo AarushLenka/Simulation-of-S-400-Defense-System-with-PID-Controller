@@ -1,0 +1,314 @@
+/* ═══════════════════════════════════════════════════════════
+   S-400 TRIUMF  —  GREEN PHOSPHOR TACTICAL HUD
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+    --col-bg:           rgba(0, 10, 0, 0.94);
+    --col-panel:        rgba(0, 16, 4, 0.88);
+    --col-border:       rgba(0, 200, 60, 0.30);
+    --col-border-hot:   rgba(0, 255, 80, 0.75);
+    --col-accent:       rgb(0, 230, 80);
+    --col-accent-dim:   rgba(0, 200, 60, 0.50);
+    --col-bright:       rgb(140, 255, 140);
+
+    --col-green:        rgb(0, 255, 100);
+    --col-yellow:       rgb(200, 255, 0);
+    --col-orange:       rgb(255, 200, 0);
+    --col-red:          rgb(255, 80, 40);
+
+    --col-text:         rgba(160, 255, 160, 0.92);
+    --col-text-dim:     rgba(100, 200, 100, 0.50);
+
+    --col-critical-bg:  rgba(255, 40,  40,  0.12);
+    --col-high-bg:      rgba(255, 160,  0,  0.10);
+    --col-medium-bg:    rgba(180, 255,  0,  0.08);
+    --col-low-bg:       rgba(0,   230, 80,  0.07);
+    --col-none-bg:      rgba(0,   180, 60,  0.05);
+}
+
+/* ── Root ───────────────────────────────────────────────── */
+.hud-root {
+    width: 100%;
+    height: 100%;
+    flex-direction: column;
+    background-color: rgba(0,0,0,0);
+}
+
+/* ── Top bar ────────────────────────────────────────────── */
+.top-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--col-bg);
+    border-bottom-color: var(--col-border-hot);
+    border-bottom-width: 1px;
+    padding: 6px 18px;
+    height: 46px;
+}
+
+.system-title {
+    font-size: 16px;
+    color: var(--col-accent);
+    -unity-font-style: bold;
+    letter-spacing: 5px;
+}
+
+.system-subtitle {
+    font-size: 8px;
+    color: var(--col-text-dim);
+    letter-spacing: 3px;
+    margin-top: 2px;
+}
+
+.top-bar-center {
+    flex-direction: column;
+    align-items: center;
+}
+
+.clock-label {
+    font-size: 20px;
+    color: var(--col-bright);
+    -unity-font-style: bold;
+    letter-spacing: 3px;
+}
+
+.mode-label {
+    font-size: 8px;
+    color: var(--col-accent-dim);
+    letter-spacing: 3px;
+}
+
+.status-indicator {
+    flex-direction: row;
+    align-items: center;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: var(--col-green);
+    margin-right: 7px;
+}
+
+.status-text {
+    font-size: 10px;
+    color: var(--col-green);
+    letter-spacing: 2px;
+}
+
+/* ── Middle area ────────────────────────────────────────── */
+.middle-area {
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+/* ── Left panel ─────────────────────────────────────────── */
+.left-panel {
+    width: 220px;
+    flex-direction: column;
+    background-color: var(--col-panel);
+    border-right-color: var(--col-border);
+    border-right-width: 1px;
+    padding: 10px 0px;
+}
+
+.panel-header {
+    font-size: 8px;
+    color: var(--col-accent-dim);
+    letter-spacing: 3px;
+    padding: 0px 14px 8px 14px;
+    border-bottom-color: var(--col-border);
+    border-bottom-width: 1px;
+    margin-bottom: 6px;
+}
+
+/* ── Stat rows ──────────────────────────────────────────── */
+.stat-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 14px;
+    border-bottom-color: rgba(0, 180, 60, 0.08);
+    border-bottom-width: 1px;
+}
+
+.stat-label {
+    font-size: 8px;
+    color: var(--col-text-dim);
+    letter-spacing: 2px;
+}
+
+.stat-value {
+    font-size: 17px;
+    color: var(--col-accent);
+    -unity-font-style: bold;
+}
+
+.stat-value--bright  { color: var(--col-bright); }
+.stat-value--yellow  { color: var(--col-yellow); }
+.stat-value--red     { color: var(--col-red); }
+.stat-value--dim     { color: var(--col-accent-dim); }
+
+/* ── Radar scope area (center) ──────────────────────────── */
+.radar-area {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.radar-frame {
+    width: 340px;
+    height: 340px;
+    border-radius: 170px;
+    border-color: var(--col-border-hot);
+    border-width: 2px;
+    background-color: rgba(0, 12, 4, 0.85);
+    align-items: center;
+    justify-content: center;
+}
+
+.radar-inner-ring {
+    width: 228px;
+    height: 228px;
+    border-radius: 114px;
+    border-color: var(--col-border);
+    border-width: 1px;
+    position: absolute;
+}
+
+.radar-inner-ring2 {
+    width: 114px;
+    height: 114px;
+    border-radius: 57px;
+    border-color: var(--col-border);
+    border-width: 1px;
+    position: absolute;
+}
+
+.radar-label {
+    font-size: 8px;
+    color: var(--col-accent-dim);
+    letter-spacing: 2px;
+    position: absolute;
+    bottom: 10px;
+}
+
+/* ── Right panel ────────────────────────────────────────── */
+.right-panel {
+    width: 300px;
+    flex-direction: column;
+    background-color: var(--col-panel);
+    border-left-color: var(--col-border);
+    border-left-width: 1px;
+    padding: 10px 0px;
+}
+
+.threat-list {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+/* ── Threat rows ────────────────────────────────────────── */
+.threat-row {
+    flex-direction: column;
+    padding: 7px 12px;
+    border-bottom-color: rgba(0, 180, 60, 0.08);
+    border-bottom-width: 1px;
+    margin: 2px 6px;
+    border-radius: 2px;
+}
+
+.threat-row--critical { background-color: var(--col-critical-bg); border-left-color: var(--col-red);    border-left-width: 3px; }
+.threat-row--high     { background-color: var(--col-high-bg);     border-left-color: var(--col-orange); border-left-width: 3px; }
+.threat-row--medium   { background-color: var(--col-medium-bg);   border-left-color: var(--col-yellow); border-left-width: 3px; }
+.threat-row--low      { background-color: var(--col-low-bg);      border-left-color: var(--col-accent); border-left-width: 3px; }
+.threat-row--none     { background-color: var(--col-none-bg);     border-left-color: var(--col-text-dim); border-left-width: 3px; }
+
+.threat-row-top {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.threat-name {
+    font-size: 11px;
+    color: var(--col-text);
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+}
+
+.threat-badge {
+    font-size: 7px;
+    letter-spacing: 2px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    -unity-font-style: bold;
+}
+
+.threat-badge--critical { background-color: rgba(255,60,40,0.25);  color: var(--col-red);    }
+.threat-badge--high     { background-color: rgba(255,180,0,0.20);  color: var(--col-orange); }
+.threat-badge--medium   { background-color: rgba(200,255,0,0.18);  color: var(--col-yellow); }
+.threat-badge--low      { background-color: rgba(0,230,80,0.18);   color: var(--col-accent); }
+.threat-badge--none     { background-color: rgba(0,180,60,0.12);   color: var(--col-text-dim); }
+
+.threat-row-bottom {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 3px;
+}
+
+.threat-detail {
+    font-size: 8px;
+    color: var(--col-text-dim);
+    letter-spacing: 1px;
+}
+
+/* ── Bottom bar ─────────────────────────────────────────── */
+.bottom-bar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--col-bg);
+    border-top-color: var(--col-border-hot);
+    border-top-width: 1px;
+    padding: 6px 18px;
+    height: 34px;
+}
+
+.bottom-info {
+    font-size: 8px;
+    color: var(--col-text-dim);
+    letter-spacing: 2px;
+}
+
+.bottom-info--hot {
+    color: var(--col-accent);
+}
+
+/* ── Pause overlay ──────────────────────────────────────── */
+.pause-overlay {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 8, 0, 0.70);
+    display: none;
+}
+
+.pause-overlay--visible {
+    display: flex;
+}
+
+.pause-text {
+    font-size: 28px;
+    color: var(--col-accent);
+    letter-spacing: 14px;
+    -unity-font-style: bold;
+    border-color: var(--col-border-hot);
+    border-width: 1px;
+    padding: 16px 44px;
+    background-color: var(--col-bg);
+}
