@@ -1,35 +1,43 @@
 using UnityEngine;
 
 /// <summary>
-/// REF §2.1 — Three states: Cruise → Evade → Dash (terminal, never returns).
-/// Cruise: straight inbound at minSpeed.
-/// Evade: triggered by isTracked, high-G 90° yaw break for 3 seconds.
-///        Evade direction locked at state entry — never recalculated from transform.forward.
-/// Dash: accelerates to maxSpeed on locked heading indefinitely.
+/// Two states: Cruise → Dash.
+/// Cruise: flies straight toward radar at minSpeed. Does NOT evade on radar detection.
+/// Dash:   accelerates to maxSpeed on locked heading after surviving missile evasion.
+/// Missile evasion: when an interceptor enters missileEvadeRadius, performs a
+/// smooth banking turn perpendicular to the missile's approach. Speed is maintained
+/// so there is no sudden snap — just a gradual heading change like a real aircraft.
 /// </summary>
 public class StealthFighter : AerialTarget
 {
-    private enum State { Cruise, Evade, Dash }
-    private State   _state     = State.Cruise;
-    private float   _evadeTimer;
+    private enum State { Cruise, Dash }
+    private State   _state = State.Cruise;
     private float   _targetAltitude;
-    private Vector3 _dashDir;    // locked at Dash entry
-    private Vector3 _evadeDir;   // locked at Evade entry — never recalculated
+    private Vector3 _dashDir;
+
+    [Header("Missile Evasion")]
+    [Tooltip("Distance at which the fighter reacts to an incoming interceptor (metres)")]
+    public float missileEvadeRadius   = 300f;
+    [Tooltip("How aggressively it banks away — lower = smoother, higher = sharper (deg/s)")]
+    public float evasionTurnRate      = 60f;   // degrees per second — realistic fighter turn
+    [Tooltip("Seconds before it can react to another missile")]
+    public float missileEvadeCooldown = 3f;
+
+    private float   _cooldownTimer = 0f;
+    private bool    _evading       = false;
+    private float   _evadeTimer    = 0f;
+    private Vector3 _evadeDir      = Vector3.zero;   // target heading during evasion
 
     protected override void InitializeTarget()
     {
-        currentSpeed = config.minSpeed;
-        // Sample terrain at spawn position using the Terrain API directly —
-        // GetTerrainYBelow() raycasts from transform.position which is correct here
-        // because Start() runs after the object is placed at its spawn point.
+        currentSpeed    = config.minSpeed;
         float groundHere = GetTerrainYBelow();
         _targetAltitude  = groundHere + Random.Range(config.minAltitude, config.maxAltitude);
 
-        // Face radar on spawn
         if (radarTarget != null)
         {
             Vector3 toRadar = (radarTarget.position - transform.position);
-            toRadar.y = 0f; // horizontal heading only — altitude held separately
+            toRadar.y = 0f;
             if (toRadar.sqrMagnitude > 0.001f)
             {
                 transform.rotation = Quaternion.LookRotation(toRadar.normalized);
@@ -44,88 +52,122 @@ public class StealthFighter : AerialTarget
 
     public override void UpdateMotion()
     {
-        switch (_state)
+        _cooldownTimer -= Time.fixedDeltaTime;
+
+        // ── Missile proximity check ───────────────────────────────────
+        if (_cooldownTimer <= 0f)
         {
-            // ── Cruise: straight inbound at constant altitude ─────────
-            case State.Cruise:
-                if (radarTarget != null)
-                {
-                    Vector3 toRadar = radarTarget.position - transform.position;
-                    toRadar.y = 0f;
-                    if (toRadar.sqrMagnitude > 0.001f)
-                    {
-                        // Only steer XZ — HoldAltitude owns Y, do NOT overwrite full velocity
-                        Vector3 vel = rb.linearVelocity;
-                        Vector3 xzTarget = toRadar.normalized * currentSpeed;
-                        vel.x = Mathf.Lerp(vel.x, xzTarget.x, 4f * Time.fixedDeltaTime);
-                        vel.z = Mathf.Lerp(vel.z, xzTarget.z, 4f * Time.fixedDeltaTime);
-                        rb.linearVelocity = vel;
-                    }
-                }
-                HoldAltitude(_targetAltitude);
-
-                if (isTracked)
-                {
-                    // Lock evade direction NOW at state entry — 90° yaw from current horizontal heading
-                    Vector3 currentFlat = rb.linearVelocity;
-                    currentFlat.y = 0f;
-                    if (currentFlat.sqrMagnitude < 0.001f) currentFlat = transform.forward;
-                    // Rotate 90° around world up — locked once, never touched again
-                    _evadeDir   = Quaternion.Euler(0f, 90f, 0f) * currentFlat.normalized;
-                    _state      = State.Evade;
-                    _evadeTimer = 3f;
-                }
-                break;
-
-            // ── Evade: hard turn onto locked heading, hold altitude ────
-            case State.Evade:
-                _evadeTimer -= Time.fixedDeltaTime;
-
-                // Snap XZ velocity toward the locked evade direction aggressively
-                // High lerp rate (12×dt ≈ 0.24/tick) gives a sharp, visible break
-                {
-                    Vector3 vel = rb.linearVelocity;
-                    Vector3 xzEvade = _evadeDir * currentSpeed * 1.15f;
-                    vel.x = Mathf.Lerp(vel.x, xzEvade.x, 12f * Time.fixedDeltaTime);
-                    vel.z = Mathf.Lerp(vel.z, xzEvade.z, 12f * Time.fixedDeltaTime);
-                    rb.linearVelocity = vel;
-                }
-                HoldAltitude(_targetAltitude);
-
-                if (_evadeTimer <= 0f)
-                {
-                    // Lock dash direction from current flat velocity
-                    Vector3 flatVel = rb.linearVelocity;
-                    flatVel.y = 0f;
-                    _dashDir = flatVel.sqrMagnitude > 0.01f
-                        ? flatVel.normalized
-                        : _evadeDir;
-                    _state = State.Dash;
-                }
-                break;
-
-            // ── Dash: supersonic sprint on locked HORIZONTAL heading ───
-            case State.Dash:
-                currentSpeed = Mathf.MoveTowards(currentSpeed,
-                    config.maxSpeed, 5f * Time.fixedDeltaTime);
-                // Drive only XZ from locked direction — HoldAltitude owns Y
-                Vector3 dashVel = rb.linearVelocity;
-                dashVel.x = Mathf.Lerp(dashVel.x, _dashDir.x * currentSpeed, 6f * Time.fixedDeltaTime);
-                dashVel.z = Mathf.Lerp(dashVel.z, _dashDir.z * currentSpeed, 6f * Time.fixedDeltaTime);
-                rb.linearVelocity = dashVel;
-                HoldAltitude(_targetAltitude);
-                break;
+            MissileController threat = FindNearestIncomingMissile();
+            if (threat != null)
+            {
+                StartEvasion(threat);
+                _cooldownTimer = missileEvadeCooldown;
+            }
         }
+
+        // ── Heading ───────────────────────────────────────────────────
+        Vector3 desiredFlat;
+
+        if (_evading)
+        {
+            _evadeTimer -= Time.fixedDeltaTime;
+            if (_evadeTimer <= 0f)
+            {
+                _evading = false;
+                // Transition to Dash on heading we've turned onto
+                Vector3 flatVel = rb.linearVelocity; flatVel.y = 0f;
+                _dashDir = flatVel.sqrMagnitude > 0.01f ? flatVel.normalized : transform.forward;
+                _state   = State.Dash;
+            }
+            desiredFlat = _evadeDir;
+        }
+        else
+        {
+            switch (_state)
+            {
+                case State.Cruise:
+                    // Fly toward radar
+                    if (radarTarget != null)
+                    {
+                        Vector3 toRadar = radarTarget.position - transform.position;
+                        toRadar.y = 0f;
+                        desiredFlat = toRadar.sqrMagnitude > 0.001f
+                                    ? toRadar.normalized : transform.forward;
+                    }
+                    else desiredFlat = transform.forward;
+                    break;
+
+                case State.Dash:
+                    currentSpeed = Mathf.MoveTowards(currentSpeed,
+                                   config.maxSpeed, 5f * Time.fixedDeltaTime);
+                    desiredFlat  = _dashDir;
+                    break;
+
+                default:
+                    desiredFlat = transform.forward;
+                    break;
+            }
+        }
+
+        // ── Smooth banking turn — rotate current velocity toward desired ──
+        // Clamp to evasionTurnRate so the aircraft sweeps through a curve,
+        // not a snap. This is the key fix for the 180-on-the-spot bug.
+        Vector3 currentFlat = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+        if (currentFlat.sqrMagnitude < 0.001f) currentFlat = transform.forward;
+        currentFlat.Normalize();
+
+        float maxDeg    = evasionTurnRate * Time.fixedDeltaTime;
+        Vector3 newFlat = Vector3.RotateTowards(currentFlat, desiredFlat, maxDeg * Mathf.Deg2Rad, 0f);
+
+        rb.linearVelocity = new Vector3(
+            newFlat.x * currentSpeed,
+            rb.linearVelocity.y,
+            newFlat.z * currentSpeed);
+
+        HoldAltitude(_targetAltitude);
 
         if (rb.linearVelocity.sqrMagnitude > 0.01f)
             transform.rotation = Quaternion.LookRotation(rb.linearVelocity.normalized);
 
         currentAltitude = transform.position.y;
+        Vector3 hVel    = rb.linearVelocity; hVel.y = 0f;
+        currentSpeed    = Mathf.Clamp(hVel.magnitude, 0f, config.maxSpeed);
+    }
 
-        // currentSpeed = horizontal magnitude only — never include vel.y from HoldAltitude
-        // otherwise the altitude controller inflates speed every tick (feedback loop)
-        Vector3 hVel = rb.linearVelocity;
-        hVel.y = 0f;
-        currentSpeed = Mathf.Clamp(hVel.magnitude, 0f, config.maxSpeed);
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    MissileController FindNearestIncomingMissile()
+    {
+        float             bestDist = missileEvadeRadius;
+        MissileController best     = null;
+        var missiles = FindObjectsByType<MissileController>(FindObjectsInactive.Exclude);
+        foreach (var m in missiles)
+        {
+            float d = Vector3.Distance(transform.position, m.transform.position);
+            if (d < bestDist) { bestDist = d; best = m; }
+        }
+        return best;
+    }
+
+    void StartEvasion(MissileController missile)
+    {
+        // Break perpendicular to the missile's flight path, on the side
+        // that maximises lateral distance from the missile.
+        Vector3 missileFlat = missile.transform.forward; missileFlat.y = 0f;
+        if (missileFlat.sqrMagnitude < 0.001f) missileFlat = Vector3.forward;
+        missileFlat.Normalize();
+
+        Vector3 fromMissile = transform.position - missile.transform.position;
+        fromMissile.y = 0f;
+        fromMissile.Normalize();
+
+        Vector3 perpRight = new Vector3(-missileFlat.z, 0f,  missileFlat.x);
+        Vector3 perpLeft  = new Vector3( missileFlat.z, 0f, -missileFlat.x);
+
+        _evadeDir   = Vector3.Dot(perpRight, fromMissile) >= 0f ? perpRight : perpLeft;
+        _evading    = true;
+        _evadeTimer = missileEvadeCooldown * 0.8f;   // break for 80% of cooldown window
+
+        Debug.Log($"[STEALTH] Evasion — banking {(_evadeDir == perpRight ? "right" : "left")} from missile");
     }
 }
