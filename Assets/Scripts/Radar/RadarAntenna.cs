@@ -10,7 +10,7 @@ using System.Collections.Generic;
 /// </summary>
 public class RadarAntenna : MonoBehaviour
 {
-    public float range         = 400000f;
+    public float range         = 10000f;  // 10km — S-400 IRL 400km → /40 = 10,000m
     public float rotationSpeed = 36f;
     public float coneAngle     = 6f;
     public LayerMask targetMask;

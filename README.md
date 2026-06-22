@@ -1,33 +1,22 @@
-# S-400 Triumf Air Defence System — Unity Simulation
+# S-400 Triumf — Air Defence Simulation
 
-## Overview
-
-This project is a real-time 3D simulation of the S-400 Triumf surface-to-air missile system built in Unity. It models the full engagement cycle of a modern air defence battery: radar search and detection, automated threat classification, fire control decision-making, interceptor missile launch, and terminal guidance. All systems operate at **1:40 scale** relative to real-world values — distances, speeds, and altitudes are divided by 40.
-
-The simulation is not a game in the traditional sense. It is a behavioural and systems model intended to demonstrate how each component of the S-400 works and interacts. There is no player input for the defence side — the system operates autonomously. The only player interaction is spawning targets via keyboard shortcuts.
+A Unity (URP) simulation of the Russian S-400 surface-to-air missile system engaging a variety of aerial targets. All distances, speeds, and altitudes are modelled at **1:40 scale** (real-world values divided by 40). Time and gravity are not scaled.
 
 ---
 
-## Scale Convention
-
-All numeric values in this project follow a strict **1:40 scale factor**:
-
-| Parameter | Real World | In Simulation |
-|---|---|---|
-| S-400 max intercept range | 400 km | 10,000 m |
-| Radar detection range | 600 km | 15,000 m |
-| Interceptor top speed (9M96E2) | ~1,800 m/s | 45 m/s |
-| Interceptor launch speed | ~800 m/s | 20 m/s |
-| Stealth fighter cruise speed | ~600 m/s | 15 m/s |
-| Stealth fighter altitude | ~12,000 m | 300 m AGL |
-| Strategic bomber altitude | ~12,000 m | 300 m AGL |
-| Cruise missile terrain altitude | ~50 m | ~2 m |
-| Ballistic missile apogee | ~50,000 m | 1,250 m |
-| Ballistic missile peak speed | ~2,100 m/s | 52 m/s |
-| UAV cruise speed | ~180 m/s | 4.5 m/s |
-| Proximity fuze radius | ~320 m | 8 m |
-
-Config altitudes in `TargetConfig` are expressed as **height above ground level (AGL)**, not absolute world Y. The spawner and each target script add the terrain elevation at the relevant position before using these values.
+## Table of Contents
+1. [Project Structure](#project-structure)
+2. [Scale Reference](#scale-reference)
+3. [Keybindings](#keybindings)
+4. [Target Types](#target-types)
+5. [Interceptor Missiles](#interceptor-missiles)
+6. [Radar System](#radar-system)
+7. [Fire Control System](#fire-control-system)
+8. [Guidance & Avoidance](#guidance--avoidance)
+9. [Camera Displays](#camera-displays)
+10. [HUD & UI](#hud--ui)
+11. [Scene Setup Checklist](#scene-setup-checklist)
+12. [Inspector Reference](#inspector-reference)
 
 ---
 
@@ -35,435 +24,400 @@ Config altitudes in `TargetConfig` are expressed as **height above ground level 
 
 ```
 Assets/
-├── Scripts/
-│   ├── Targets/
-│   │   ├── AerialTarget.cs          Base class for all flying objects
-│   │   ├── StealthFighter.cs
-│   │   ├── StrategicBomber.cs
-│   │   ├── UAVDrone.cs
-│   │   ├── CruiseMissile.cs
-│   │   ├── BallisticMissile.cs
-│   │   ├── Bird.cs
-│   │   └── TargetSpawner.cs
-│   ├── Radar/
-│   │   ├── RadarAntenna.cs
-│   │   ├── RadarContact.cs
-│   │   ├── ThreatClassifier.cs
-│   │   └── RadarHitHandler.cs
-│   ├── FireControl/
-│   │   └── FireControlSystem.cs
-│   ├── Missile/
-│   │   └── MissileController.cs
-│   └── UI/
-│       ├── ThreatPanel.cs
-│       └── HUDController.cs
+├── Editor/
+│   └── DebugMissileSpawner.cs       # Tools > Debug menu items
+├── Models/                          # FBX models + noise.mp4
+├── Prefabs/
+│   ├── Missiles/
+│   │   ├── 9M96E.prefab             # Short-range agile interceptor
+│   │   ├── 48N6DM.prefab            # Long-range interceptor
+│   │   └── S400_Interceptor.prefab  # Legacy (unused at runtime)
+│   └── Targets/
+│       ├── BallisticMissile.prefab
+│       ├── Bird.prefab
+│       ├── CruiseMissile.prefab
+│       ├── StealthFighter.prefab
+│       ├── StrategicBomber.prefab
+│       └── UAVDrone.prefab
 ├── ScriptableObjects/
-│   ├── TargetConfig.cs              Data definition
+│   ├── BallisticMissileConfig.asset
+│   ├── BirdConfig.asset
+│   ├── CruiseMissileConfig.asset
 │   ├── StealthFighterConfig.asset
 │   ├── StrategicBomberConfig.asset
 │   ├── UAVDroneConfig.asset
-│   ├── CruiseMissileConfig.asset
-│   ├── BallisticMissileConfig.asset
-│   └── BirdConfig.asset
-└── Editor/
-    ├── MatchTerrainToSkybox.cs
-    └── DebugMissileSpawner.cs
+│   ├── 9M96E_Config.asset           # InterceptorConfig (not yet wired to MissileController)
+│   └── 48N6DM_Config.asset          # InterceptorConfig (not yet wired to MissileController)
+├── Scripts/
+│   ├── Camera/
+│   │   ├── MissileCameraDisplay.cs  # 1st-person split-view on Display 4
+│   │   ├── StaticNoiseDisplay.cs    # Shader graph static on idle displays
+│   │   └── TargetCameraDisplay.cs   # 3rd-person target tracking on Display 3
+│   ├── FireControl/
+│   │   └── FireControlSystem.cs     # Engagement logic + missile routing
+│   ├── Missile/
+│   │   ├── MissileController.cs     # Guidance, avoidance, detonation
+│   │   ├── MissileType.cs           # Enum: Standard_48N6DM / Agile_9M96E
+│   │   └── PIDController.cs        # Utility class (not currently wired)
+│   ├── Radar/
+│   │   ├── RadarAntenna.cs          # Sweep, persistent track table
+│   │   ├── RadarContact.cs          # Data class: position/velocity/rcs/threatLevel
+│   │   ├── RadarHitHandler.cs       # Destroy on physical radar collision
+│   │   └── ThreatClassifier.cs      # Pure function: RCS + speed → ThreatLevel
+│   ├── Targets/
+│   │   ├── AerialTarget.cs          # Abstract base: terrain floor, altitude hold
+│   │   ├── BallisticMissile.cs      # Boost → Coast → Reentry phases
+│   │   ├── Bird.cs                  # V-formation flock, auto-despawn
+│   │   ├── CruiseMissile.cs         # Terrain-following + waypoint nav
+│   │   ├── StealthFighter.cs        # Cruise → Dash + missile proximity evasion
+│   │   ├── StrategicBomber.cs       # Straight-and-level, no evasion
+│   │   ├── TargetSpawner.cs         # Keyboard spawn + V-flock spawn
+│   │   └── UAVDrone.cs              # Loiter orbit → 60° dive on detection
+│   └── UI/
+│       ├── HUDController.cs         # UI Toolkit HUD driver
+│       ├── RadarDisplay.cs          # Texture2D phosphor radar scope
+│       └── ThreatPanel.cs           # Legacy UGUI threat list (TMPro)
+└── UI/
+    └── S400_HUD.uxml                # HUD layout
 ```
 
 ---
 
-## Keyboard Controls (Play Mode)
+## Scale Reference
+
+| Quantity | Real World | 1:40 Scale (in-game) |
+|---|---|---|
+| S-400 engagement range | 400 km | 10,000 m |
+| Radar range | 400 km | 10,000 m |
+| Spawn radius | — | 12,000 m |
+| Ballistic missile apogee | 50 km | 1,250 m |
+| Cruise missile terrain follow | 50 m | ~2 m (visibility tweak) |
+| Stealth fighter altitude | 10,000–18,000 m | 1,000–1,500 m |
+| Bomber altitude | 15,000–16,000 m | 900–1,200 m |
+| UAV altitude | 3,000–7,000 m | 350–400 m |
+
+All speeds are intentionally inflated from strict 1:40 for playability.
+
+---
+
+## Keybindings
 
 | Key | Action |
 |---|---|
-| `F` | Spawn Stealth Fighter |
-| `R` | Spawn Strategic Bomber |
-| `D` | Spawn 5× UAV Drones |
-| `C` | Spawn Cruise Missile |
-| `B` | Spawn Ballistic Missile |
-| `K` | Spawn 8× Birds |
-| `T` | Debug spawn (Stealth Fighter close to radar) |
-
-Auto-spawn is also available: set `autoSpawnEnabled = true` on the `TargetSpawner` component.
+| **B** | Spawn ballistic missile |
+| **C** | Spawn cruise missile |
+| **F** | Spawn stealth fighter |
+| **R** | Spawn strategic bomber |
+| **D** | Spawn 5 UAV drones |
+| **K** | Spawn 1 V-formation bird flock (8 birds) |
+| **T** | Cycle target camera (Display 3) to next active target |
+| **ESC** | Pause / unpause |
 
 ---
 
-## System Architecture — Data Flow
+## Target Types
 
-The simulation operates as a pipeline that runs every frame:
+All targets extend `AerialTarget` and share:
+- `TargetConfig` ScriptableObject (speeds, altitudes, RCS, max-G)
+- `SetRadarTarget(Transform)` — called by `TargetSpawner` after instantiation
+- `HoldAltitude(float)` — P-controller on vertical velocity, clamped ±60 m/s
+- `GetTerrainYBelow()` — downward raycast + Unity Terrain API fallback
+- `EnforceTerrainFloor()` — hard position clamp + velocity cancel if below `minTerrainClearance` (15 m)
+- `engagementRadius = 14000 m` — if target travels beyond this it steers back toward radar
 
+### Ballistic Missile
+**Config:** `rcs=1`, `spd=45–52 m/s`, `alt=50–1250 m`  
+Three physics phases:
+1. **Boost** (18 s): gravity off, constant force along locked upward-forward direction, clamps to `maxSpeed`. Ends at 18 s or `apogeeAltitude=1250 m`.
+2. **Coast**: gravity on, physics drives the arc.
+3. **Reentry**: triggered when vertical velocity goes negative; `linearDamping=0.08` simulates atmospheric drag. Speed increases under gravity.
+
+### Strategic Bomber
+**Config:** `rcs=100`, `spd=30–33 m/s`, `alt=900–1200 m`  
+No state machine. Flies straight toward radar at constant speed and altitude forever. Never evades. Only active behaviour: gentle `HoldAltitude` correction.
+
+### UAV Drone
+**Config:** `rcs=0.01`, `spd=7–10 m/s`, `alt=350–400 m`  
+Two states:
+1. **Loiter**: perfect circular orbit (radius 1200 m) around spawn XZ point at fixed altitude.
+2. **Dive**: triggered when `isTracked=true`. Accelerates to `maxSpeed`. Executes a true 60° nose-down dive toward the ground.
+
+Never returns to Loiter.
+
+### Cruise Missile
+**Config:** `rcs=0.05`, `spd=17–20 m/s`, `alt=8–10 m`  
+Simultaneous independent axes:
+- **Y-axis**: smoothly Lerps world-Y toward `terrainHeight + 2 m` each tick; zero vertical velocity afterward.
+- **XZ-axis**: steers toward waypoints in sequence (advance within 100 m radius), falls back to radar position when no waypoints assigned.
+
+### Stealth Fighter
+**Config:** `rcs=0.001`, `spd=26–30 m/s`, `alt=1000–1500 m`  
+Two states:
+1. **Cruise**: flies straight toward radar at `minSpeed`. Does **not** evade on radar detection.
+2. **Dash**: accelerates to `maxSpeed` on locked heading after completing evasion.
+
+**Missile evasion**: every cooldown window (`missileEvadeCooldown=3 s`), scans for any `MissileController` within `missileEvadeRadius=300 m`. If found, performs a smooth banking break perpendicular to the missile's flight path — side chosen to maximise lateral separation. Turn rate is clamped to `evasionTurnRate=60 °/s` so it sweeps a realistic curve rather than snapping. After `missileEvadeCooldown × 0.8 s` the break ends and the fighter transitions to Dash.
+
+### Bird (Flock)
+**Config:** `rcs=0.0005`, `spd=2–5 m/s`  
+Spawned in a V-formation of up to 8 birds by `TargetSpawner.SpawnFlock()`. Each bird is assigned a fixed slot offset in the leader's local space:
 ```
-TargetSpawner
-     │
-     ▼
-AerialTarget (6 subclasses) ──► Physics / Rigidbody
-     │
-     ▼
-RadarAntenna.SweepForTargets()
-     │  OverlapSphere → cone angle filter → contact list
-     ▼
-ThreatClassifier.Classify()
-     │  Pure function: speed + altitude + RCS → ThreatLevel
-     ▼
-FireControlSystem.Update()
-     │  Range gate → reload gate → catchability check → LaunchSalvo()
-     ▼
-MissileController (per interceptor)
-     │  Vertical launch → Pure Pursuit → Proportional Navigation → Detonate()
-     ▼
-HUDController / ThreatPanel (UI feedback)
+        [0] Leader (tip)
+     [1]   [2]  Wing row 1
+  [3]         [4]  Wing row 2
+[5]             [6]  Wing row 3
+[7]                  Wing row 4 (left only)
 ```
-
-Each stage is described in detail below.
-
----
-
-## 1. Target Spawner (`TargetSpawner.cs`)
-
-Targets are spawned on the circumference of a circle centred on the radar, at `spawnRadius` (default 3,000 m). The spawner:
-
-1. Picks a random angle on the circle to determine the XZ spawn position.
-2. Raycasts downward from Y=5,000 to find the terrain height at that XZ position.
-3. Reads `TargetConfig.minAltitude` and `maxAltitude` and adds the terrain height to get a world Y spawn position. This ensures all altitude values in configs are AGL, not absolute.
-4. Instantiates the prefab, faces it toward the radar, and calls `target.SetRadarTarget(centerPoint)` before `Start()` runs — this is critical because `InitializeTarget()` runs in `Start()` and needs the radar reference to set initial velocity direction and altitude targets.
-
-The `SetRadarTarget` / `Start()` ordering is deliberate: `Awake()` only sets up the Rigidbody, `Start()` calls `InitializeTarget()` one frame later, by which point the spawner has already set `radarTarget`.
+Slot spacing: `lat = flockSpreadRadius × 0.5`, `depth = flockSpreadRadius × 0.55`.  
+Each follower steers toward its world-space slot (`leader.position + leaderRotation × slotOffset`) with `slotTracking=3` lerp rate. Leader flies straight in `flockDir`.  
+Altitude held at `flockAltitude=15 m` above terrain. Auto-despawns after `lifetime=30 s`.  
+Classified as `ThreatLevel.None` (RCS below 0.0008 threshold).
 
 ---
 
-## 2. Aerial Target Base Class (`AerialTarget.cs`)
+## Interceptor Missiles
 
-All six target types inherit from this abstract class. It provides:
+### 9M96E — Short-range, High-agility
+Targets: UAV drones, cruise missiles  
+**Key prefab values (set directly on MissileController component):**
+| Parameter | Value |
+|---|---|
+| launchSpeed | 30 m/s |
+| maxSpeed | 80 m/s |
+| acceleration | 100 m/s² |
+| maxTurnRate | 500 °/s |
+| boostDuration | 0.3 s |
+| terminalRange | 500 m |
+| navConstant | 5 |
+| fuzeRadius | 8 m |
+| lifetime | 180 s |
+| pursuitLeadTime | 3 s |
+| avoidanceLookAhead | 80 m |
 
-### Physics Setup
-- `useGravity = false` for all targets except `BallisticMissile` during coast/reentry.
-- `linearDamping = 0` — no automatic drag, all deceleration is explicit.
-- Layer mask built in `Awake()` that excludes the object's own layer from terrain raycasts, preventing the common bug where a downward ray hits the object's own collider and returns a false ground height.
+### 48N6DM — Long-range
+Targets: ballistic missiles, stealth fighters, strategic bombers  
+**Key prefab values:**
+| Parameter | Value |
+|---|---|
+| launchSpeed | 40 m/s |
+| maxSpeed | 150 m/s |
+| acceleration | 200 m/s² |
+| maxTurnRate | 180 °/s |
+| boostDuration | 2 s |
+| terminalRange | 800 m |
+| navConstant | 5 |
+| fuzeRadius | 8 m |
+| lifetime | 180 s |
+| pursuitLeadTime | 8 s |
+| avoidanceLookAhead | 200 m |
 
-### Radar State
-Three public fields written by the radar and read by subclasses and the FCS:
-- `isDetected` — set true when the radar beam sweeps over the target.
-- `isTracked` — set true simultaneously with `isDetected` (in this simulation they are equivalent; a more advanced version would separate initial detection from sustained track).
-- `threatLevel` — written by `ThreatClassifier` after each contact is built.
-
-### `HoldAltitude(float desiredWorldY, float strength)`
-A proportional controller (P-controller) for vertical position. It computes the altitude error `desiredWorldY - position.y`, multiplies by `strength` to get a target vertical velocity, clamps it to ±60 m/s, then lerps `rb.linearVelocity.y` toward that target. This drives altitude purely through velocity without teleporting position, which avoids fighting the physics engine.
-
-**Critical design note**: All subclasses that use `HoldAltitude` must track `currentSpeed` as the horizontal magnitude only (`rb.linearVelocity` with `y=0`). If `currentSpeed` includes the vertical component from `HoldAltitude`, there is a feedback loop: HoldAltitude adds vel.y → total speed increases → currentSpeed reads higher → next tick the XZ steering targets a higher horizontal speed → total speed grows unboundedly. All subclasses explicitly do `hv.y = 0; currentSpeed = hv.magnitude` at the end of `UpdateMotion()`.
-
-### `GetTerrainYBelow()`
-Raycasts downward from `position + 500m` using the layer mask that excludes the object's own layer. Returns the terrain Y at that XZ position. Falls back to `Terrain.SampleHeight()` if the raycast misses (e.g., outside terrain bounds). Used by `HoldAltitude` callers and by `CruiseMissile` for terrain following.
-
-### `EnforceTerrainFloor()`
-Runs after every `UpdateMotion()` call. Gets the terrain Y below, adds `minTerrainClearance` (default 15 m), and if `position.y` is below that floor, snaps the object up and zeroes any downward velocity. This is a safety net — it catches edge cases where the movement logic doesn't react fast enough to rising terrain.
-
-### Terrain and Radar Collision
-- `OnCollisionEnter`: if the colliding object has a `TerrainCollider`, the target destroys itself.
-- `RadarHitHandler` on the Radar GameObject handles the reverse: if a target or missile collides with the radar, it is destroyed with a CRITICAL HIT log message.
-
----
-
-## 3. Individual Target Behaviours
-
-### 3.1 Stealth Fighter (`StealthFighter.cs`)
-
-Three-state machine: **Cruise → Evade → Dash**. The Dash state is terminal — once entered it is never exited.
-
-**Cruise**: Steers XZ toward the radar using a lerp on the x and z components of `rb.linearVelocity` separately (never setting the full vector, which would zero out the Y component that `HoldAltitude` owns). Calls `HoldAltitude` every tick to maintain cruise altitude. Checks `isTracked` each tick and transitions to Evade the instant it becomes true.
-
-**Evade**: At state entry, the current flat (Y=0) velocity is rotated 90° around the world-up axis to produce `_evadeDir`. This direction is locked — it is never recalculated from `transform.forward`, which would cause the break direction to chase itself as the aircraft rotates. The XZ velocity is aggressively lerped toward `_evadeDir * currentSpeed * 1.15` with a high rate (12×dt ≈ 0.24/tick), giving a sharp visible break manoeuvre. `HoldAltitude` keeps the aircraft level during the break. After 3 seconds the current flat velocity is locked as `_dashDir` and the state transitions to Dash.
-
-**Dash**: Lerps XZ velocity toward `_dashDir * currentSpeed` while simultaneously accelerating `currentSpeed` toward `config.maxSpeed`. `HoldAltitude` keeps altitude stable. Because `_dashDir` was locked from the flat velocity at Evade exit, the dash is always horizontal — no climb component is ever introduced.
-
-**Speed tracking**: `currentSpeed = clamp(flatVelocity.magnitude, 0, config.maxSpeed)`. The Y component of velocity is explicitly excluded.
+> **Note:** `InterceptorConfig` ScriptableObject assets (`9M96E_Config.asset`, `48N6DM_Config.asset`) exist but are **not read at runtime**. All values are configured directly on the prefab's `MissileController` component in the Inspector.
 
 ---
 
-### 3.2 Strategic Bomber (`StrategicBomber.cs`)
+## Radar System
 
-No state machine. Flies straight and level from spawn to radar indefinitely. Never reacts to `isTracked`. The only active behaviour is calling `HoldAltitude` each tick. XZ velocity is maintained by lerping the x and z components toward their current normalised direction — this preserves heading without zeroing Y. `currentSpeed` is set at init and never changed.
+### RadarAntenna
+- **Range**: 10,000 m (default; override in Inspector per scene)
+- **Rotation**: 36 °/s (6 RPM)
+- **Cone angle**: 6° half-angle sweep beam
+- Maintains **two contact lists**:
+  - `contacts` — only targets inside the beam **this frame** (consumed by FCS)
+  - `trackedContacts` — persistent `Dictionary<AerialTarget, TrackedContact>` — all ever-detected targets, updated on each sweep hit, never cleared until the target is destroyed
+- On sweep hit: creates/updates a `TrackedContact` entry with current position, velocity, RCS, and `lastSeenAngle`
+- `NotifyTargetNeutralized(target)` — called by `MissileController` before destroying a target; marks the track `neutralized=true` so HUD and radar scope show NEUTRALIZED state
+- `PurgeDestroyedTargets()` — removes null keys each frame (Unity null check detects destroyed objects)
 
----
-
-### 3.3 UAV Drone (`UAVDrone.cs`)
-
-Two-state machine: **Loiter → Dive**. Dive is permanent once triggered.
-
-**Loiter**: Uses trigonometric circle calculation — the orbit angle is advanced by `currentSpeed / loiterRadius` radians per second, and the target XZ position is `loiterCenter + (cos(angle), 0, sin(angle)) * loiterRadius`. The orbit centre is the spawn position, not the radar. `HoldAltitude` maintains loiter altitude. Transitions to Dive when `isTracked`.
-
-**Dive**: Constructs a dive direction from the current horizontal forward vector combined with `Vector3.down` at a 60° angle (`cos(60°)` forward + `sin(60°)` down, normalised). Accelerates toward `config.maxSpeed`. No return to Loiter — the dive is a one-way commitment.
-
----
-
-### 3.4 Cruise Missile (`CruiseMissile.cs`)
-
-Two simultaneous controllers on separate axes every `FixedUpdate`:
-
-**Y-axis (terrain following)**: `GetTerrainYBelow()` returns the terrain height at current XZ. The missile's Y position is lerped toward `groundY + terrainFollowHeight` (default 2 m). This is done by direct position assignment (teleporting Y smoothly), and `rb.linearVelocity.y` is set to 0 after each frame. The terrain follower completely owns the vertical axis — physics has no role in Y movement.
-
-**XZ-axis (waypoint navigation)**: A sequential waypoint list defines the attack corridor. The missile steers toward `waypoints[wpIndex]`, advancing when within `waypointRadius` (100 m). Falls back to the radar position when no waypoints are assigned or all are exhausted. Steering is a lerp on the full XZ velocity vector at rate 3×dt.
-
-The two controllers are independent — terrain following adjusts Y, waypoint navigation adjusts XZ — producing a nap-of-earth flight path.
-
----
-
-### 3.5 Ballistic Missile (`BallisticMissile.cs`)
-
-Three physical phases driven by explicit Rigidbody state changes:
-
-**Boost** (`rb.useGravity = false`): A fixed boost direction `_boostDir` is locked at launch as `(transform.forward + Vector3.up * 2).normalized`. This is computed once and never recalculated — the mistake of recalculating from `transform.forward` each tick would cause the direction to rotate with the missile and produce a vertical feedback loop. `rb.AddForce(_boostDir * accel, ForceMode.Acceleration)` is applied each tick. Velocity is clamped to `config.maxSpeed`. Boost ends when either `boostDuration` seconds have elapsed or `transform.position.y >= apogeeAltitude` (1,250 m).
-
-**Coast** (`rb.useGravity = true`): No code intervention. Unity's physics engine drives the ballistic arc. The missile continues climbing under its own momentum, peaks, and begins descending. The phase ends when `rb.linearVelocity.y < 0` (descending).
-
-**Reentry**: `rb.linearDamping = 0.08` is applied to simulate atmospheric drag. No thrust, no steering. Gravity accelerates the warhead downward and the drag prevents unbounded speed growth. `currentSpeed` increases dramatically during this phase as intended.
-
----
-
-### 3.6 Bird (`Bird.cs`)
-
-Boid flocking with two rules blended at 1.5:0.5 (separation:cohesion):
-
-**Separation**: For each other bird within `separationDist` (8 m), adds a vector pointing away from that bird to the separation accumulator.
-
-**Cohesion**: Accumulates all other birds' positions, averages them, subtracts current position to get a vector toward the flock centre.
-
-The blend `separation * 1.5 + cohesion * 0.5` is normalised and used as the steering target direction. A single bird with no flock mates produces zero steer and flies straight indefinitely — this is expected and documented behaviour.
-
-Altitude is maintained via `HoldAltitude(groundY + flockAltitude)` where `groundY` is terrain height from `GetTerrainYBelow()`. Birds must stay below ~10 m AGL (12 m world Y in practice) to be classified as `ThreatLevel.None` by the classifier — if a bird somehow climbs higher it risks being misidentified and engaged.
-
----
-
-## 4. Radar System (`RadarAntenna.cs`, `RadarContact.cs`, `ThreatClassifier.cs`)
-
-### 4.1 Antenna Rotation and Sweep
-
-The antenna model (`antennaModel` Transform) rotates at `rotationSpeed` degrees/second (36°/s = 6 RPM). The sweep direction is derived from the **world Y rotation angle** of the antenna model, not from `transform.forward`, because the model's local forward axis may not align with world forward depending on how the mesh was imported.
-
-Each frame, `SweepForTargets()`:
-1. Clears the contacts list.
-2. Computes `sweepForward` as `(sin(angle), 0, cos(angle))` — a horizontal unit vector in the antenna's current facing direction.
-3. Calls `Physics.OverlapSphere` with radius `range` and `targetMask` to find all colliders within range on the target layer.
-4. For each hit, computes the flat angle between `sweepForward` and the flat direction to the target. If that angle ≤ `coneAngle` (6°), the target is inside the beam.
-5. Reads the `AerialTarget` component, sets `isDetected = true` and `isTracked = true`, builds a `RadarContact`, runs `ThreatClassifier.Classify()`, and adds the contact to the list.
-
-**Implications of the sweep model**: A target is only in the contact list during the frames when the antenna beam physically overlaps it — roughly once per 10-second rotation cycle. Between sweeps the contacts list is empty for that target. The FCS reads the contacts list every frame, so it acts immediately on each sweep detection. The `isTracked` flag is set to true when detected but is never cleared — this means after first detection `isTracked` remains true permanently, which is what triggers evasive manoeuvres on affected targets.
-
-### 4.2 RadarContact Data
-
-Each contact is a snapshot containing:
-- `target` — direct reference to the `AerialTarget` component
-- `position` — world position at detection time
-- `velocity` — `Rigidbody.linearVelocity` at detection time (used for intercept prediction)
-- `rcs` — read from `TargetConfig.rcs`
-- `threatLevel` — assigned by the classifier
-
-### 4.3 Threat Classifier (`ThreatClassifier.cs`)
-
-A pure static function with no state. Decision tree evaluated in strict order — first match wins. All thresholds are at 1:40 scale:
+### ThreatClassifier
+Pure static function, no memory. First matching rule wins.
 
 | Rule | Condition | Result |
 |---|---|---|
-| 1 (Bird) | speed < 0.7 m/s AND alt < 12 m AND rcs < 0.01 | None |
-| 2 (Ballistic) | speed > 20 m/s | Critical |
-| 3 (Cruise) | alt < 5 m AND speed > 3.75 m/s AND rcs < 0.5 | Critical |
-| 4 (Stealth) | rcs < 0.01 AND speed > 7.5 m/s | Critical |
-| 5 (Bomber) | rcs > 50 AND alt > 125 m | High |
-| 6 (UAV) | speed < 3.75 m/s AND alt < 150 m | Medium |
-| 7 (Fallback) | anything else | Low |
+| 1 — Bird | `rcs < 0.0008` | None |
+| 2 — Ballistic | `spd > 40 m/s` | Critical |
+| 3 — Stealth | `rcs < 0.01 && spd > 20 m/s` | Critical |
+| 4 — Cruise | `rcs 0.01–0.5 && spd > 14 m/s` | Critical |
+| 5 — Bomber | `rcs > 50` | High |
+| 6 — Drone | `rcs ≤ 0.01 && spd ≤ 20 m/s` | Medium |
+| 7 — Fallback | — | Low |
 
-Bird check is first because birds share RCS < 0.01 with stealth fighters — without the bird check, a slow low bird would fall through to Rule 4 and be misidentified as a stealth fighter. The speed gate (< 0.7 m/s) is what separates them.
-
----
-
-## 5. Fire Control System (`FireControlSystem.cs`)
-
-Runs in `Update()` every frame. Iterates the radar contact list and for each contact applies three gates:
-
-**Gate 1 — Threat**: `threatLevel == None` skips the contact. Birds are never engaged.
-
-**Gate 2 — Range**: Distance from FCS to contact > `engagementRange` (5,000 m). Out-of-range contacts are logged but not engaged.
-
-**Gate 3 — Catchability**: Computes `closingSpeed = missileMaxSpeed - targetRadialSpeed` where `targetRadialSpeed = dot(contact.velocity, directionToTarget)`. If closing speed < 5 m/s the target is moving away from the launcher nearly as fast as the missile — engagement is aborted. At 1:40 scale with missile top speed 45 m/s, this threshold is meaningful.
-
-**Gate 4 — Reload**: `Time.time - lastLaunchTime < reloadTime`. Prevents full magazine dump in a single burst.
-
-If all gates pass, `LaunchSalvo()` fires 1 or 2 interceptors (based on threat level) via coroutines staggered 0.5 seconds apart. The target is added to `engagedTargets` (a `HashSet`) to prevent duplicate engagement on subsequent radar sweeps.
-
-`missileMaxSpeed` is read from the missile prefab's `MissileController.maxSpeed` at `Start()` — it is `[HideInInspector]` to prevent Inspector overrides from silently breaking the catchability check.
-
-**Salvo size**:
-- Critical → 2 interceptors
-- High → 2 interceptors
-- Medium → 1 interceptor
-- Low → 1 interceptor
-
-**Launcher selection**: The nearest launcher Transform (by Euclidean distance) to the target's contact position is selected. All launchers are always assumed available.
+### RadarHitHandler
+Attach to the Radar GameObject. Destroys any `AerialTarget` or `MissileController` that physically collides with it and registers a miss on the HUD.
 
 ---
 
-## 6. Interceptor Missile — Guidance System (`MissileController.cs`)
+## Fire Control System
 
-This is the most technically detailed component in the project. The interceptor models the S-400's 9M96E2 missile at 1:40 scale.
+`FireControlSystem` drives engagement decisions each `Update()` tick:
 
-### 6.1 Launch
-
-The missile is spawned pointing straight up (`Quaternion.LookRotation(Vector3.up)`) with initial velocity `Vector3.up * launchSpeed` (20 m/s upward). This models the S-400's vertical cold-launch ejection system, where the missile is ejected from the canister vertically before the motor fires and pitchover guidance begins.
-
-Angular physics are disabled: `rb.constraints = RigidbodyConstraints.FreezeRotation`. Rotation is driven entirely by the guidance code, not by physics torques. This is the key design decision that makes the guidance stable — earlier attempts to use `AddTorque` with a PID controller caused uncontrollable spinning because the PID integral accumulated faster than the missile could respond at simulation scale.
-
-### 6.2 Acceleration
-
-Each `FixedUpdate`, `currentSpeed` is advanced toward `maxSpeed` via `Mathf.MoveTowards` at rate `acceleration` m/s². The velocity is then set directly to `transform.forward * _speed` — velocity always follows the nose direction. There is no separate force model for thrust; the motor is implicitly modelled by the speed ramp.
-
-### 6.3 Guidance — Phase Selection
-
-Distance to target is checked each tick:
-- Distance > `terminalRange` (80 m): **Pure Pursuit with lead** (`ComputePursuit()`)
-- Distance ≤ `terminalRange`: **Proportional Navigation** (`ComputePN()`)
-
-### 6.4 Pure Pursuit with Lead (`ComputePursuit()`)
-
-Pure pursuit means pointing directly at the target's current position. Naive pure pursuit causes the missile to chase the target from behind and requires the missile to be significantly faster than the target. The implementation adds a **lead correction** to reduce this chase behaviour:
-
-```
-tof = distance / missileSpeed
-aimPoint = target.position + target.velocity * tof * 0.5
-aimDir = (aimPoint - missile.position).normalized
-```
-
-The time-of-flight estimate `tof` is the distance divided by current missile speed. The target's velocity is projected forward by half that time, placing the aim point ahead of where the target currently is. The 0.5 factor is deliberately conservative — projecting by the full TOF tends to overshoot on slow targets or when the target is turning.
-
-This is stable at all ranges and handles all target types including the ballistic missile during reentry (where the target is moving very fast but mostly downward, and the lead correction still converges).
-
-### 6.5 Proportional Navigation (`ComputePN()`)
-
-Proportional Navigation (PN) is the guidance law used by virtually all modern guided missiles. It is based on the principle that if the line-of-sight (LOS) from missile to target is not rotating, the missile is on a collision course. The guidance command is proportional to the LOS rotation rate.
-
-**LOS and LOS rate**:
-```
-LOS = (target.position - missile.position).normalized
-LOSrate = (LOS - lastLOS) / deltaTime
-```
-`lastLOS` is the LOS direction from the previous physics tick. The difference divided by `deltaTime` gives the angular rate of change of the LOS vector — how fast the target is "drifting" relative to the missile's nose.
-
-**Closing velocity**:
-```
-closingVel = dot(missile.velocity - target.velocity, -LOS)
-```
-The component of relative velocity along the LOS direction toward the target. Clamped to a minimum of 1 m/s to avoid division problems when the missile is nearly stationary relative to the target.
-
-**Acceleration command**:
-```
-accel = N * closingVel * LOSrate
-```
-where N = `navConstant` (3 by default). This is the standard PN formula: `a_c = N * V_c * ω` where V_c is closing velocity and ω is LOS rate.
-
-**Desired direction**:
-```
-desiredDir = (transform.forward + accel * deltaTime).normalized
-```
-The acceleration command is added to the current forward direction and renormalised. This converts the acceleration command into a new heading direction that the rotation controller can track.
-
-**Why PN is only used in terminal phase**: PN is numerically sensitive. When the missile is far from the target, small errors in `lastLOS` (from floating point or large timesteps) produce large `LOSrate` values and erratic commands. At close range the geometry is well-conditioned and PN's advantage over pure pursuit — that it doesn't require the missile to be faster than the target — matters most.
-
-### 6.6 Rotation Control
-
-Both guidance laws return a unit vector `aimDir` representing the desired nose direction. The rotation controller:
-
-```csharp
-Quaternion targetRot = Quaternion.LookRotation(aimDir);
-transform.rotation = Quaternion.RotateTowards(
-    transform.rotation, targetRot, maxTurnRate * Time.fixedDeltaTime);
-```
-
-`Quaternion.RotateTowards` rotates the current orientation toward `targetRot` by at most `maxTurnRate * dt` degrees. With `maxTurnRate = 180°/s`, the missile can rotate at most ~3° per physics tick (at 60 Hz fixed timestep). This is the physical manoeuvrability limit of the missile.
-
-The velocity is then set to `transform.forward * _speed` — velocity always follows the nose. This means the missile does not "slide" — it always moves in the direction it is pointing. This is a simplification of real missile aerodynamics but produces correct interception behaviour at simulation scale.
-
-### 6.7 Proximity Fuze
-
-Each tick, `Vector3.Distance(position, target.position)` is compared against `fuzeRadius` (8 m). When the missile enters the fuze radius, `Detonate()` is called. This models a proximity-fuzed warhead — the missile does not need to make direct contact, just pass within the lethal radius.
-
-`Detonate()`:
-1. Loads and instantiates `Resources/Effects/Explosion` if it exists.
-2. Destroys the target GameObject.
-3. Notifies `FireControlSystem.OnMissileTerminated(true)` so the FCS updates its active missile count and the HUD registers a kill.
-4. Destroys the missile GameObject.
-
-A `_terminated` flag prevents double-notification if `OnDestroy` fires after `Detonate` has already run.
-
-### 6.8 Self-Destruct (Fuel Exhaustion)
-
-If `_elapsed > lifetime` (30 seconds) the missile calls `Terminate(false)`, notifying FCS of a miss. This models fuel exhaustion — the motor burns out and the missile falls. In the current implementation it simply destroys the missile rather than simulating a ballistic fall, but the miss is correctly recorded.
-
-### 6.9 Terrain Impact
-
-`OnCollisionEnter` checks for `TerrainCollider` on the colliding object. A terrain collision calls `Detonate()` — treating ground impact as a detonation (which is physically reasonable; a missile hitting the ground at 45 m/s would detonate, though without a valid target the `hit` flag sent to FCS is false).
+1. **Contact source**: reads `radar.trackedContacts` (persistent, always available) rather than the transient sweep list, so targets are engaged between radar sweeps.
+2. **Filters**: skips `ThreatLevel.None`, null targets, already-engaged targets, targets beyond `engagementRange=10,000 m`, and targets with insufficient closing speed (< 5 m/s advantage).
+3. **Reload gate**: minimum `reloadTime=3 s` between launches.
+4. **Missile selection** (`SelectPrefabForContact`):
+   - `rcs ≤ 0.002 && Critical` → **48N6DM** (stealth fighter — identified by RCS, not speed, to avoid misrouting during evasive manoeuvres)
+   - `Medium` or `Low` → **9M96E** (drone)
+   - `High` → **48N6DM** (bomber)
+   - `Critical && spd ≤ 22 m/s` → **9M96E** (cruise missile)
+   - `Critical && spd > 22 m/s` → **48N6DM** (ballistic)
+5. **Single-shot policy**: always fires exactly **1 missile** first. If it misses and no other interceptor is tracking the target, the target is re-queued and a follow-up is fired automatically.
+6. **Vertical cold-launch**: missiles spawn pointing straight up (`Quaternion.LookRotation(Vector3.up)`) and rely on `boostDuration` to pitch over.
+7. Notifies `MissileCameraDisplay` on launch and `HUDController` on termination (hit/miss).
 
 ---
 
-## 7. UI Systems
+## Guidance & Avoidance
 
-### 7.1 Threat Panel (`ThreatPanel.cs`)
+### MissileController — Guidance Phases
 
-A scrolling list that mirrors the radar contacts list in real time. Each row shows target name, threat level, distance in km, and speed in m/s. Rows are pooled — excess rows are hidden rather than destroyed. Colours: red = Critical, orange = High, yellow = Medium, cyan = Low, green = None.
+**Boost phase** (`elapsed < boostDuration`):  
+Nose rotated toward `Vector3.up` at `maxTurnRate`. No guidance. Pure vertical climb.
 
-### 7.2 HUD Controller (`HUDController.cs`)
+**Mid-course** (`dist ≥ terminalRange`):  
+Pure pursuit with lead — aims at `target.position + target.velocity × min(tof, pursuitLeadTime)`.  
+- `pursuitLeadTime` is per-prefab: 9M96E=3 s (avoids phantom-chasing circling drones), 48N6DM=8 s (aims well ahead of fast straight targets).
 
-Tracks kills and misses via `RegisterKill()` and `RegisterMiss()` called by the FCS after each missile termination.
+**Terminal phase** (`dist < terminalRange`):  
+Proportional Navigation (PN): steers to zero the line-of-sight rate.  
+`accel = N' × max(closingVel, 1) × LOSrate`  
+`navConstant` (N') = 5 on both prefabs.
 
----
+**Terrain/obstacle avoidance** (mid-course only, skipped in terminal):  
+7-ray fan cast forward in the missile's hemisphere:
+- Forward, ±27° left/right, ±27° up/down, ±45° up-left/up-right
+- Dynamic look-ahead: `max(avoidanceLookAhead, speed × 1.5)`
+- Reacts only to `TerrainCollider` or objects tagged **"Radar"**
+- Urgency = `1 - (hitDist / lookAhead)` — closer obstacle = stronger push
+- Avoidance direction = reflected hit normal + 0.5× upward bias
+- **Low-pass smoothed** at `avoidanceSmoothing=4` rate to prevent per-frame jitter
+- Final blend: `Slerp(guidanceDir, smoothedAvoidDir, avoidanceWeight=0.85)`
 
-## 8. Terrain and Environment
+**Detonation**:
+- Proximity fuze: detonates when `dist < fuzeRadius=8 m`
+- Contact kill: `OnCollisionEnter` detonates on any physical contact
+- Fuel exhaustion: `Terminate(false)` after `lifetime` seconds
 
-The terrain is a Unity Terrain with a custom heightmap sculpted to produce a realistic mountain ring around a central valley. The terrain uses four TerrainLayer textures from the `TerrainDemoScene_URP` package: `Grass_A` (valley floor), `Grass_Moss_A` (slopes), `Cliff_Mossy_E` (steep rock faces), and `Heather_A` (high ridgelines). The splatmap is painted procedurally by slope angle and normalised altitude.
-
-A `SkyboxMountains` prefab ring of mesh geometry is positioned at terrain centre to provide a continuous mountain horizon that matches the terrain edges.
-
-The `MatchTerrainToSkybox` editor tool (`Tools > Match Terrain To Skybox`) applies the terrain material, layers, and environment settings in a single click.
-
----
-
-## 9. Known Design Decisions and Simplifications
-
-- **No radar memory**: The contacts list is cleared and rebuilt every frame. Track loss occurs implicitly — if a target leaves the beam, it simply disappears from the list. There is no dead-reckoning or track-before-detect logic.
-- **`isTracked` is never cleared**: Once a target is detected for the first time, `isTracked` remains true permanently. A more realistic model would clear it between radar sweeps and only set it to true on confirmed sustained track.
-- **No electronic warfare**: The radar cannot be jammed. RCS values are constants, not aspect-angle-dependent.
-- **No magazine limit**: The FCS can fire indefinitely. The reload timer prevents burst firing but there is no total missile count.
-- **No multi-target tracking priority**: The FCS engages contacts in the order the radar returns them, not sorted by threat or time-to-impact.
-- **Missile velocity follows rotation exactly**: The missile does not have aerodynamic slip or angle-of-attack. Velocity is always `transform.forward * speed`, which is a simplification that produces stable guidance but is not physically accurate for a real aerodynamic body.
-- **Terrain collision is terminal**: Both targets and missiles are destroyed on terrain contact. Targets do not break apart, there are no debris effects.
-
----
-
-## 10. Editor Tools
-
-### `Tools > Match Terrain To Skybox`
-Applies the TerrainLit material, terrain layers, lighting settings, and fog to match the terrain to the skybox mountains.
-
-### `Tools > Debug > Spawn Missiles at Launchers`
-Places static (disabled) missile prefab instances at each launcher position for visual alignment without entering play mode.
-
-### `Tools > Debug > Remove Debug Missiles`
-Cleans up debug missile instances.
+> **Radar tag requirement**: objects that should be avoided must be tagged **"Radar"** in the Unity Editor. Set this in Edit → Tags & Layers.
 
 ---
 
-## 11. TargetConfig ScriptableObject
+## Camera Displays
 
-Each target type has a dedicated asset in `Assets/ScriptableObjects/`. Fields:
+### Display 3 — Target Tracking (`TargetCameraDisplay`)
+- 3rd-person follow camera, offset `(0, 2, -6)` in target local space
+- Camera depth: `1` — renders over static noise
+- Smoothed position: `Lerp` at `followSmoothing=5`
+- Looks at `target.position + Vector3.up × 2`
+- **T** key cycles `_activeIndex` through registered targets
+- When active target is destroyed, automatically shifts to next in queue
+- Camera hidden when no targets remain
 
+### Display 4 — Missile POV (`MissileCameraDisplay`)
+- One `Camera` component per active interceptor, all on Display 4
+- Camera depth: `1`
+- **Smart viewport layout**: iterates all column counts, picks the `cols × rows` grid minimising deviation from 16:9 per cell. Examples: 1 missile = full screen, 4 missiles = 2×2, 6 missiles = 3×2.
+- Cameras are created on `RegisterMissile()` and destroyed on `UnregisterMissile()` or null-purged in `LateUpdate`
+
+### Static Noise (`StaticNoiseDisplay`)
+- Depth -99 orthographic camera — renders behind all real cameras
+- Fullscreen quad (scale = `aspect × 1`) driven by shader graph material (`Assets/StaticNoise.mat` from `Assets/Static.shadergraph`)
+- Auto-loads `StaticNoise.mat` by path at runtime; falls back to magenta with a warning if not found
+- One instance per display: set `displayIndex=2` for Display 3, `displayIndex=3` for Display 4
+- Hidden automatically when a real camera (depth ≥ 0) renders on the same display
+
+---
+
+## HUD & UI
+
+Built with **UI Toolkit** (`S400_HUD.uxml`). Driven by `HUDController`.
+
+### Left Panel — Engagement Status
+| Label | UXML name | Content |
+|---|---|---|
+| Active interceptors | `active-missiles-val` | `fireControl.ActiveMissileCount` |
+| Kills confirmed | `kills-val` | Incremented by `RegisterKill()` |
+| Misses | `misses-val` | Incremented by `RegisterMiss()` |
+| Radar contacts | `contacts-val` | `radar.contacts.Count` (current sweep) |
+| Antenna bearing | `antenna-angle-val` | `radar.AntennaAngle:000°` |
+| Clock | `clock-label` | Elapsed time HH:MM:SS |
+
+### Keybindings section (UXML, static)
+`[F] STEALTH`, `[R] BOMBER`, `[B] BALLISTIC`, `[C] CRUISE`, `[D] UAV x5`, `[K] BIRDS x8`, `[ESC] PAUSE`, `[T] CYCLE TARGET CAM`
+
+### Right Panel — Threat Tracks
+Persistent per-target rows driven from `radar.trackedContacts`:
+- Row created on first radar detection; stays alive until target is destroyed
+- Live updates: distance (km), speed (m/s), altitude (m)
+- On neutralization: badge changes to **NEUTRALIZED**, row shows **TARGET DESTROYED**, then auto-removes after `neutralizedDisplayTime=4 s`
+
+### Radar Scope
+The `radar-scope` UI element receives `RadarDisplay.GetRadarTexture()` as a `backgroundImage` each frame. The `RadarDisplay` script renders a 512×512 `Texture2D` with:
+- Green phosphor background
+- 3 concentric range rings at ¼, ½, ¾ radius
+- Rotating sweep line with brightness fade
+- Persistent blips from `trackedContacts` (fade with antenna angle delta; neutralized = small grey dot)
+- Blip colours: Critical=red, High=orange, Medium=yellow, Low=green, None=dim green
+
+---
+
+## Scene Setup Checklist
+
+1. **S-400 / Launcher GameObject**
+   - Add `FireControlSystem` → assign `radar`, `launcherPositions[]`, `missilePrefab9M96E`, `missilePrefab48N6DM`, `missileCameraDisplay`
+   - Add `RadarAntenna` (or child) → assign `antennaModel`, set `targetMask` to your target layer
+   - Add `RadarHitHandler` to the radar mesh
+
+2. **Spawner GameObject**
+   - Add `TargetSpawner` → assign all 6 prefab slots + `centerPoint` (radar Transform) + `targetCameraDisplay`
+
+3. **HUD GameObject**
+   - Add `UIDocument` + `HUDController` → assign `fireControl`, `radar`, `radarDisplay`
+   - Add `RadarDisplay` → assign `radar`
+
+4. **Camera Manager GameObject**
+   - Add `TargetCameraDisplay` → `displayIndex=2`
+   - Add `MissileCameraDisplay` → `missileDisplay=3`
+   - Add `StaticNoiseDisplay` ×2 → `displayIndex=2` and `displayIndex=3`, assign `StaticNoise.mat`
+
+5. **Tags & Layers**
+   - Create tag **"Radar"** and apply to radar collider GameObjects (for missile avoidance)
+   - Assign target GameObjects to the layer used by `RadarAntenna.targetMask`
+
+6. **Missile Prefab Trail**
+   - Both 9M96E and 48N6DM have a `TrailRenderer`: `Time=2`, `MinVertexDistance=5`, `StartWidth=3`, `EndWidth=0.1`, gradient `#FF6600 → transparent`
+   - Assign a particle/unlit material to the TrailRenderer's `Materials[0]` slot (e.g. `Default-Particle`)
+
+---
+
+## Inspector Reference
+
+### TargetConfig (ScriptableObject)
 | Field | Description |
 |---|---|
-| `targetTypeName` | Display name |
-| `minSpeed / maxSpeed` | Speed range in m/s (1:40 scale) |
-| `minAltitude / maxAltitude` | Altitude range in metres **above ground level** |
-| `rcs` | Radar cross-section in m² |
-| `maxManeuverG` | Max manoeuvrability (currently informational only) |
-| `defaultThreat` | Expected threat level (for reference) |
+| targetTypeName | Display name |
+| minSpeed / maxSpeed | m/s at 1:40 scale |
+| minAltitude / maxAltitude | metres AGL at 1:40 scale |
+| rcs | Radar cross-section m² |
+| maxManeuverG | Max manoeuver force (not yet enforced in code) |
+| defaultThreat | Default ThreatLevel (informational) |
 
-All altitude values are AGL. The spawner and target scripts add terrain elevation before using them.
+### MissileController (per-prefab)
+All parameters are set directly on the prefab — `InterceptorConfig` assets are not read at runtime.
 
----
-
-*Content was written from direct source code analysis. All values reflect the current state of the implementation.*
+| Header | Field | Description |
+|---|---|---|
+| Speed | launchSpeed | Initial velocity off the rail (m/s) |
+| Speed | maxSpeed | Terminal velocity (m/s) |
+| Speed | acceleration | Rate of speed increase (m/s²) |
+| Maneuverability | maxTurnRate | Max nose rotation rate (°/s) |
+| Maneuverability | terminalRange | Switch to PN guidance inside this distance (m) |
+| PN | navConstant | N' gain for proportional navigation |
+| Warhead | fuzeRadius | Proximity kill radius (m) |
+| Self-destruct | lifetime | Seconds before fuel exhaustion |
+| Boost | boostDuration | Seconds of vertical climb before homing |
+| Guidance | pursuitLeadTime | Max TOF cap for pursuit lead (s) |
+| Avoidance | avoidanceLookAhead | Minimum ray cast distance (m) |
+| Avoidance | avoidanceFanAngle | Half-angle of ray fan (°) |
+| Avoidance | avoidanceWeight | Avoidance blend strength (0–1) |
+| Avoidance | avoidanceSmoothing | Low-pass filter rate (3–6 recommended) |
+| Avoidance | avoidanceMask | LayerMask for obstacle rays |
+| Runtime | currentSpeed | Read-only live speed display (m/s) |

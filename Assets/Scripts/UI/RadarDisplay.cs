@@ -7,7 +7,7 @@ public class RadarDisplay : MonoBehaviour
     public RadarAntenna radar;
     public RawImage     radarImage;
     public int          texSize      = 512;
-    public float        displayRange = 400000f;
+    public float        displayRange = 10000f;  // must match RadarAntenna.range
 
     private Texture2D tex;
     private Color32[] clearPixels;

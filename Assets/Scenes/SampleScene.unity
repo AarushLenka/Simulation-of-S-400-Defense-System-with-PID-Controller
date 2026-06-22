@@ -1052,13 +1052,13 @@ MonoBehaviour:
   - {fileID: 158371}
   - {fileID: 1458068399}
   - {fileID: 466006793}
-  missilePrefab_48N6DM: {fileID: 5996905066819867014, guid: 6ffb229e5224ef54f8dfb072684428bd, type: 3}
-  missilePrefab_9M96E: {fileID: 5996905066819867014, guid: 9588b5cf1433b944a983c9b9ef5fe41a, type: 3}
+  missilePrefab9M96E: {fileID: 0}
+  missilePrefab48N6DM: {fileID: 0}
   engagementRange: 12000
   reloadTime: 5
   missileCameraDisplay: {fileID: 1480466817}
-  missileMaxSpeed: 45
-  missilePrefab: {fileID: 5996905066819867014, guid: 6ffb229e5224ef54f8dfb072684428bd, type: 3}
+  maxSpeed9M96E: 45
+  maxSpeed48N6DM: 45
 --- !u!4 &1312998799
 Transform:
   m_ObjectHideFlags: 0
@@ -1479,7 +1479,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed96482b1c4b01a40a225fb378f9c848, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RadarAntenna
-  range: 15000
+  range: 10000
   rotationSpeed: 36
   coneAngle: 6
   targetMask:
@@ -1751,6 +1751,8 @@ MonoBehaviour:
   spawnRadius: 3000
   autoSpawnEnabled: 0
   autoSpawnInterval: 15
+  flockSize: 8
+  flockSpreadRadius: 8
   targetCameraDisplay: {fileID: 1480466818}
 --- !u!4 &1868379677
 Transform:
@@ -2630,6 +2632,67 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2060532442}
   m_CullTransparentMesh: 1
+--- !u!1 &2075993440
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2075993443}
+  - component: {fileID: 2075993442}
+  - component: {fileID: 2075993441}
+  m_Layer: 0
+  m_Name: StaticDisplay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2075993441
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2075993440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d128a049969d498499ed4a2a5357cd2a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StaticNoiseDisplay
+  displayIndex: 3
+  noiseMaterial: {fileID: 2100000, guid: fdb7b9e74bd67324ba4b14fa5b6a44c0, type: 2}
+--- !u!114 &2075993442
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2075993440}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d128a049969d498499ed4a2a5357cd2a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StaticNoiseDisplay
+  displayIndex: 2
+  noiseMaterial: {fileID: 2100000, guid: fdb7b9e74bd67324ba4b14fa5b6a44c0, type: 2}
+--- !u!4 &2075993443
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2075993440}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 610.797, y: 49.078, z: -1544.9248}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2085587394
 GameObject:
   m_ObjectHideFlags: 0
@@ -2751,7 +2814,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3156850835957697459, guid: e12f87747dcc9f548ba2560bd38d37de, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0
+      value: 2.98
       objectReference: {fileID: 0}
     - target: {fileID: 3156850835957697459, guid: e12f87747dcc9f548ba2560bd38d37de, type: 3}
       propertyPath: m_LocalPosition.z
@@ -2810,3 +2873,4 @@ SceneRoots:
   - {fileID: 1957746091}
   - {fileID: 1882038418}
   - {fileID: 1480466819}
+  - {fileID: 2075993443}

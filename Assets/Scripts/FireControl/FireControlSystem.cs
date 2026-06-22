@@ -15,7 +15,7 @@ public class FireControlSystem : MonoBehaviour
     public GameObject missilePrefab48N6DM;
 
     [Header("Engagement")]
-    public float engagementRange = 5000f;
+    public float engagementRange = 10000f;  // S-400 IRL 400km → /40 = 10,000m (matches radar range)
     public float reloadTime      = 3f;
 
     [Tooltip("Assign the MissileCameraDisplay component here")]
